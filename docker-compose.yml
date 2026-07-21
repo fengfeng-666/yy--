@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: yy-kitchen-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-yy_kitchen}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-yy_kitchen}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    container_name: yy-kitchen-backend
+    environment:
+      APP_NAME: YY私厨
+      APP_ENV: development
+      DEBUG: "true"
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-yy_kitchen}
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      JWT_SECRET_KEY: replace-with-strong-secret
+      JWT_ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      REFRESH_TOKEN_EXPIRE_DAYS: 30
+      UPLOAD_DIR: uploads
+      MAX_UPLOAD_SIZE_MB: 10
+      CORS_ORIGINS: '["http://localhost:5174"]'
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+
+volumes:
+  postgres_data:
