@@ -53,20 +53,31 @@ uvicorn app.main:app --reload --port 8001
 首次建表或后续模型变更时，进入 `backend/` 目录执行：
 
 ```bash
-alembic revision --autogenerate -m "init"
-alembic upgrade head
+uv run alembic revision --autogenerate -m "init"
+uv run alembic upgrade head
 ```
 
 常用命令：
 
-- 查看当前迁移版本：`alembic current`
-- 查看迁移历史：`alembic history`
-- 回退一个版本：`alembic downgrade -1`
+- 查看当前迁移版本：`uv run alembic current`
+- 查看迁移历史：`uv run alembic history`
+- 回退一个版本：`uv run alembic downgrade -1`
 
 说明：
 
 - `alembic/env.py` 会自动读取 `backend/.env` 中的数据库连接配置
 - 新增 ORM 模型后，需要在 `app/models/__init__.py` 中导入，确保 `autogenerate` 能发现元数据
+
+### 5.1 重建开发库
+
+如果本地开发库的迁移状态混乱，可以先执行仓库内保留的 SQL 脚本清空核心表和 `alembic_version`：
+
+```bash
+docker exec -i yy-kitchen-postgres psql -U postgres -d yy_kitchen < backend/sql/reset_dev_schema.sql
+uv run alembic upgrade head
+```
+
+脚本位置：`backend/sql/reset_dev_schema.sql`
 
 ### 6. 访问接口
 

@@ -1,16 +1,28 @@
+<script setup lang="ts">
+import { storeToRefs } from 'pinia'
+
+import { useAppStore } from '@/stores/app'
+import { useFamilyStore } from '@/stores/family'
+
+const appStore = useAppStore()
+const familyStore = useFamilyStore()
+const { welcomeText, userNickname, familyName } = storeToRefs(appStore)
+const { members } = storeToRefs(familyStore)
+</script>
+
 <template>
   <section class="space-y-6 px-5 pb-8 pt-6">
     <div class="rounded-[28px] bg-[linear-gradient(135deg,_rgba(242,172,114,0.92),_rgba(232,122,85,0.88))] p-6 text-white shadow-[0_24px_60px_rgba(232,122,85,0.28)]">
       <p class="text-sm tracking-[0.24em] text-white/75">YY 私厨</p>
       <div class="mt-3 flex items-start justify-between gap-4">
         <div>
-          <h1 class="text-2xl font-semibold">今晚吃什么</h1>
+          <h1 class="text-2xl font-semibold">{{ welcomeText }}</h1>
           <p class="mt-2 max-w-[240px] text-sm leading-6 text-white/85">
-            把“点菜、做饭、评价”串成一个温暖的小闭环。
+            {{ familyName }} · 把“点菜、做饭、评价”串成一个温暖的小闭环。
           </p>
         </div>
         <div class="rounded-full border border-white/30 bg-white/15 px-3 py-2 text-xs">
-          周二 · 晚餐
+          {{ members.length }}/2 成员
         </div>
       </div>
     </div>
@@ -34,10 +46,10 @@
           <p class="text-sm text-[var(--yy-muted)]">今日菜单</p>
           <h2 class="mt-1 text-lg font-semibold text-[var(--yy-ink)]">糖醋排骨 + 清炒生菜</h2>
         </div>
-        <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-700">制作中</span>
+        <span class="rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-700">待确认</span>
       </div>
       <div class="mt-4 rounded-2xl bg-[var(--yy-cream)] px-4 py-3 text-sm text-[var(--yy-muted)]">
-        负责人：睿丰 · 预计 19:00 上菜
+        负责人：{{ userNickname }} · 预计 19:00 上菜
       </div>
     </article>
 

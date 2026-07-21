@@ -1,0 +1,31 @@
+from typing import Annotated
+
+from fastapi import APIRouter, Depends
+
+from app.api.deps import DbSession, get_current_user
+from app.models.user import User
+from app.schemas.auth import AuthResponse, LoginRequest, RegisterRequest, UserProfile
+from app.schemas.common import ApiResponse, success_response
+from app.services.auth import login_user, register_user
+
+
+router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+@router.post("/register", response_model=ApiResponse[AuthResponse], summary="注册")
+async def register(payload: RegisterRequest, session: DbSession) -> ApiResponse[AuthResponse]:
+    auth_data = await register_user(session, payload)
+    return success_response(data=auth_data, message="注册成功")
+
+
+@router.post("/login", response_model=ApiResponse[AuthResponse], summary="登录")
+async def login(payload: LoginRequest, session: DbSession) -> ApiResponse[AuthResponse]:
+    auth_data = await login_user(session, payload)
+    return success_response(data=auth_data, message="登录成功")
+
+
+@router.get("/me", response_model=ApiResponse[UserProfile], summary="当前用户")
+async def get_me(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> ApiResponse[UserProfile]:
+    return success_response(data=UserProfile.model_validate(current_user))

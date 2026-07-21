@@ -8,11 +8,13 @@ Requires-Dist: alembic<2.0.0,>=1.16.4
 Requires-Dist: asyncpg<1.0.0,>=0.30.0
 Requires-Dist: fastapi<1.0.0,>=0.116.1
 Requires-Dist: greenlet<4.0.0,>=3.2.3
+Requires-Dist: PyJWT<3.0.0,>=2.10.1
 Requires-Dist: pydantic-settings<3.0.0,>=2.10.1
 Requires-Dist: python-dotenv<2.0.0,>=1.1.1
 Requires-Dist: sqlalchemy<3.0.0,>=2.0.42
 Requires-Dist: uvicorn[standard]<1.0.0,>=0.35.0
 Provides-Extra: dev
+Requires-Dist: aiosqlite<1.0.0,>=0.21.0; extra == "dev"
 Requires-Dist: httpx<1.0.0,>=0.28.1; extra == "dev"
 Requires-Dist: pytest<9.0.0,>=8.4.1; extra == "dev"
 Requires-Dist: pytest-asyncio<2.0.0,>=1.1.0; extra == "dev"
@@ -68,7 +70,27 @@ pip install -e .[dev]
 uvicorn app.main:app --reload --port 8001
 ```
 
-### 5. 访问接口
+### 5. 执行数据库迁移
+
+首次建表或后续模型变更时，进入 `backend/` 目录执行：
+
+```bash
+alembic revision --autogenerate -m "init"
+alembic upgrade head
+```
+
+常用命令：
+
+- 查看当前迁移版本：`alembic current`
+- 查看迁移历史：`alembic history`
+- 回退一个版本：`alembic downgrade -1`
+
+说明：
+
+- `alembic/env.py` 会自动读取 `backend/.env` 中的数据库连接配置
+- 新增 ORM 模型后，需要在 `app/models/__init__.py` 中导入，确保 `autogenerate` 能发现元数据
+
+### 6. 访问接口
 
 ```text
 GET http://localhost:8001/api/v1/health
@@ -126,6 +148,8 @@ DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5433/yy_kitchen
 - 使用 `docker compose up` 启动整套服务时，后端容器会自动连接 `postgres` 容器
 - 健康检查接口会返回数据库连接状态，便于确认 PostgreSQL 是否配置成功
 - 当前默认前端地址为 `http://localhost:5174`
+- 所有成功响应统一使用 `{code, message, data}` 结构
+- `AppException`、请求参数校验异常、`HTTPException` 和未捕获异常都会返回统一错误结构
 
 ## 目录说明
 
