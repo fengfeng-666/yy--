@@ -1,10 +1,13 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { storeToRefs } from 'pinia'
+import DishDetailPage from '@/pages/DishDetailPage.vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import DishesPage from '@/pages/DishesPage.vue'
 import FamilyOnboardingPage from '@/pages/FamilyOnboardingPage.vue'
 import HomePage from '@/pages/HomePage.vue'
 import LoginPage from '@/pages/LoginPage.vue'
+import OrderCreatePage from '@/pages/OrderCreatePage.vue'
+import OrderDetailPage from '@/pages/OrderDetailPage.vue'
 import OrdersPage from '@/pages/OrdersPage.vue'
 import PlansPage from '@/pages/PlansPage.vue'
 import ProfilePage from '@/pages/ProfilePage.vue'
@@ -59,6 +62,24 @@ const routes: RouteRecordRaw[] = [
         component: ProfilePage,
       },
     ],
+  },
+  {
+    path: '/dishes/:id',
+    name: 'dish-detail',
+    component: DishDetailPage,
+    meta: { requiresAuth: true, requiresFamily: true },
+  },
+  {
+    path: '/orders/create',
+    name: 'order-create',
+    component: OrderCreatePage,
+    meta: { requiresAuth: true, requiresFamily: true },
+  },
+  {
+    path: '/orders/:id',
+    name: 'order-detail',
+    component: OrderDetailPage,
+    meta: { requiresAuth: true, requiresFamily: true },
   },
 ]
 

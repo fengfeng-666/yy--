@@ -53,7 +53,13 @@ uvicorn app.main:app --reload --port 8001
 首次建表或后续模型变更时，进入 `backend/` 目录执行：
 
 ```bash
-uv run alembic revision --autogenerate -m "init"
+uv run alembic upgrade head
+```
+
+如果是新增/调整模型后，需要先生成迁移，再升级：
+
+```bash
+uv run alembic revision --autogenerate -m "describe-change"
 uv run alembic upgrade head
 ```
 
@@ -67,8 +73,47 @@ uv run alembic upgrade head
 
 - `alembic/env.py` 会自动读取 `backend/.env` 中的数据库连接配置
 - 新增 ORM 模型后，需要在 `app/models/__init__.py` 中导入，确保 `autogenerate` 能发现元数据
+- Alembic 是数据库结构演进的唯一事实来源，日常开发一律以 migration 为准
 
-### 5.1 重建开发库
+### 5.1 SQL 建库脚本
+
+仓库现在保留两类 SQL 脚本，都在 `backend/sql/`：
+
+- `bootstrap_schema.sql`：当前版本完整建库快照，适合全新数据库快速初始化
+- `reset_dev_schema.sql`：本地开发重置脚本，清空当前所有核心表和 `alembic_version`
+
+全新数据库初始化有两种方式：
+
+方式一，推荐：直接跑迁移
+
+```bash
+uv run alembic upgrade head
+```
+
+方式二，先执行 SQL 快照，再核对迁移版本
+
+```bash
+docker exec -i yy-kitchen-postgres psql -U postgres -d yy_kitchen < backend/sql/bootstrap_schema.sql
+uv run alembic current
+```
+
+如果 `bootstrap_schema.sql` 是当前最新快照，`uv run alembic current` 会显示当前 head。
+
+维护约定：
+
+- 每次新增表结构或字段变更，先补 Alembic migration
+- migration 合并验证后，再同步刷新 `backend/sql/bootstrap_schema.sql`
+- 不允许只改 SQL 脚本、不补 migration
+
+如需基于 Alembic 自动导出最新 SQL 快照，可执行：
+
+```bash
+powershell -ExecutionPolicy Bypass -File .\scripts\refresh_bootstrap_sql.ps1
+```
+
+导出结果默认写到：`backend/sql/bootstrap_schema.generated.sql`
+
+### 5.2 重建开发库
 
 如果本地开发库的迁移状态混乱，可以先执行仓库内保留的 SQL 脚本清空核心表和 `alembic_version`：
 
@@ -77,7 +122,10 @@ docker exec -i yy-kitchen-postgres psql -U postgres -d yy_kitchen < backend/sql/
 uv run alembic upgrade head
 ```
 
-脚本位置：`backend/sql/reset_dev_schema.sql`
+脚本位置：
+
+- `backend/sql/reset_dev_schema.sql`
+- `backend/sql/bootstrap_schema.sql`
 
 ### 6. 访问接口
 

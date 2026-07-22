@@ -21,6 +21,10 @@ async function logout() {
   showSuccessToast('已退出登录')
   await router.replace('/login')
 }
+
+async function goToDishes() {
+  await router.push('/dishes')
+}
 </script>
 
 <template>
@@ -72,7 +76,13 @@ async function logout() {
     <div class="space-y-3">
       <div class="rounded-2xl bg-white px-4 py-4 text-sm text-[var(--yy-ink)] shadow-sm">个人资料</div>
       <div class="rounded-2xl bg-white px-4 py-4 text-sm text-[var(--yy-ink)] shadow-sm">家庭信息</div>
-      <div class="rounded-2xl bg-white px-4 py-4 text-sm text-[var(--yy-ink)] shadow-sm">菜品管理</div>
+      <button
+        type="button"
+        class="w-full rounded-2xl bg-white px-4 py-4 text-left text-sm text-[var(--yy-ink)] shadow-sm"
+        @click="goToDishes"
+      >
+        菜品管理
+      </button>
       <div class="rounded-2xl bg-white px-4 py-4 text-sm text-[var(--yy-ink)] shadow-sm">通知设置</div>
     </div>
 

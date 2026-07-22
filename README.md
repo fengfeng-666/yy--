@@ -72,6 +72,20 @@ uvicorn app.main:app --reload --port 8001
 - API 根地址：`http://localhost:8001`
 - 健康检查：`http://localhost:8001/api/v1/health`
 
+启动后首次请执行数据库初始化，推荐在 `backend/` 目录运行：
+
+```bash
+uv run alembic upgrade head
+```
+
+如果你想直接用 SQL 快照初始化当前库结构，也可以执行：
+
+```bash
+docker exec -i yy-kitchen-postgres psql -U postgres -d yy_kitchen < backend/sql/bootstrap_schema.sql
+```
+
+详细迁移约定见 [backend/README.md](file:///f:/my_project/yy私厨/backend/README.md)。
+
 ### 3. 启动前端
 
 进入 `frontend` 目录安装依赖并启动：

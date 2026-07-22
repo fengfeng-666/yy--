@@ -4,6 +4,7 @@ fastapi<1.0.0,>=0.116.1
 greenlet<4.0.0,>=3.2.3
 PyJWT<3.0.0,>=2.10.1
 pydantic-settings<3.0.0,>=2.10.1
+python-multipart<1.0.0,>=0.0.20
 python-dotenv<2.0.0,>=1.1.1
 sqlalchemy<3.0.0,>=2.0.42
 uvicorn[standard]<1.0.0,>=0.35.0
