@@ -1,16 +1,6 @@
-export interface DishCategory {
-  id: number
-  family_id: number
-  name: string
-  sort_order: number
-  created_at: string
-  updated_at: string
-}
-
 export interface DishItem {
   id: number
   family_id: number
-  category_id: number
   name: string
   description: string | null
   price: number
@@ -18,18 +8,9 @@ export interface DishItem {
   is_available: boolean
   created_at: string
   updated_at: string
-  category: DishCategory
 }
-
-export interface CreateDishCategoryPayload {
-  name: string
-  sort_order: number
-}
-
-export interface UpdateDishCategoryPayload extends CreateDishCategoryPayload {}
 
 export interface CreateDishPayload {
-  category_id: number
   name: string
   description?: string
   price: number

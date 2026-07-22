@@ -1,7 +1,8 @@
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import quote
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -38,13 +39,40 @@ class Settings(BaseSettings):
     max_upload_size_mb: int = Field(default=10)
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5174"])
 
+    @model_validator(mode="after")
+    def validate_production_settings(self) -> "Settings":
+        if self.app_env.lower() not in {"production", "prod"}:
+            return self
+
+        if self.debug:
+            raise ValueError("生产环境必须关闭 DEBUG")
+
+        weak_secret_markers = ("replace", "change-me", "change_me", "changeme")
+        normalized_secret = self.jwt_secret_key.lower()
+        if len(self.jwt_secret_key.encode("utf-8")) < 32 or any(
+            marker in normalized_secret for marker in weak_secret_markers
+        ):
+            raise ValueError("生产环境 JWT_SECRET_KEY 必须是至少 32 字节的随机密钥")
+
+        normalized_db_password = self.db_password.lower()
+        if not self.database_url and (
+            normalized_db_password in {"password", "postgres"}
+            or any(marker in normalized_db_password for marker in weak_secret_markers)
+        ):
+            raise ValueError("生产环境必须配置强数据库密码")
+
+        if "*" in self.cors_origins:
+            raise ValueError("生产环境 CORS_ORIGINS 不能使用通配符")
+
+        return self
+
     @property
     def sqlalchemy_database_url(self) -> str:
         if self.database_url:
             return self.database_url
         return (
-            f"postgresql+asyncpg://{self.db_user}:{self.db_password}"
-            f"@{self.db_host}:{self.db_port}/{self.db_name}"
+            f"postgresql+asyncpg://{quote(self.db_user, safe='')}:{quote(self.db_password, safe='')}"
+            f"@{self.db_host}:{self.db_port}/{quote(self.db_name, safe='')}"
         )
 
 

@@ -67,16 +67,9 @@ async def join_family(client: AsyncClient, token: str, invite_code: str) -> None
 
 async def create_dish(client: AsyncClient, token: str) -> int:
     headers = {"Authorization": f"Bearer {token}"}
-    category_response = await client.post(
-        "/dish-categories",
-        json={"name": "家常菜", "sort_order": 1},
-        headers=headers,
-    )
-    category_id = category_response.json()["data"]["id"]
     dish_response = await client.post(
         "/dishes",
         json={
-            "category_id": category_id,
             "name": "番茄炒蛋",
             "description": "适合晚餐",
             "price": 18,
@@ -180,3 +173,65 @@ async def test_order_detail_is_isolated_by_family(test_client: AsyncClient) -> N
         headers={"Authorization": f"Bearer {outsider_token}"},
     )
     assert outsider_detail.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_review_history_and_home_summary(test_client: AsyncClient) -> None:
+    owner_token = await register_and_login(test_client, username="review_owner")
+    invite_code = await create_family(test_client, owner_token)
+    member_token = await register_and_login(test_client, username="review_member")
+    await join_family(test_client, member_token, invite_code)
+    dish_id = await create_dish(test_client, owner_token)
+
+    create_response = await test_client.post(
+        "/orders",
+        json={
+            "cook_id": 2,
+            "planned_date": date.today().isoformat(),
+            "planned_time": "18:30:00",
+            "items": [{"dish_id": dish_id, "quantity": 2}],
+        },
+        headers={"Authorization": f"Bearer {owner_token}"},
+    )
+    order_id = create_response.json()["data"]["id"]
+
+    accept_response = await test_client.post(
+        f"/orders/{order_id}/accept",
+        headers={"Authorization": f"Bearer {member_token}"},
+    )
+    assert accept_response.status_code == 200
+
+    review_response = await test_client.post(
+        f"/orders/{order_id}/review",
+        json={"rating": 5, "content": "非常下饭"},
+        headers={"Authorization": f"Bearer {owner_token}"},
+    )
+    assert review_response.status_code == 200
+    assert review_response.json()["data"]["review"]["rating"] == 5
+    assert review_response.json()["data"]["review"]["content"] == "非常下饭"
+
+    duplicate_review = await test_client.post(
+        f"/orders/{order_id}/review",
+        json={"rating": 4},
+        headers={"Authorization": f"Bearer {owner_token}"},
+    )
+    assert duplicate_review.status_code == 409
+
+    history_response = await test_client.get(
+        "/orders/history",
+        headers={"Authorization": f"Bearer {owner_token}"},
+    )
+    assert history_response.status_code == 200
+    assert history_response.json()["data"][0]["id"] == order_id
+    assert history_response.json()["data"][0]["review"]["reviewer"]["username"] == "review_owner"
+
+    summary_response = await test_client.get(
+        "/home/summary",
+        headers={"Authorization": f"Bearer {owner_token}"},
+    )
+    assert summary_response.status_code == 200
+    summary = summary_response.json()["data"]
+    assert summary["monthly_accepted_orders_count"] == 1
+    assert summary["monthly_top_dish_name"] == "番茄炒蛋"
+    assert summary["today_order"]["id"] == order_id
+    assert summary["review_pending_count"] == 0

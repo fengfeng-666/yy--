@@ -4,25 +4,32 @@
 
 :root {
   font-family:
-    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC',
+    Inter, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC',
     sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #2c211c;
-  background: #f8f2ea;
+  color: #30251f;
+  background: #efe7dc;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  --yy-cream: #f8f2ea;
-  --yy-cream-deep: #f1e4d5;
-  --yy-apricot: #f2ac72;
-  --yy-tomato: #e87a55;
-  --yy-sage: #91a88a;
-  --yy-ink: #2c211c;
-  --yy-muted: #7d6d63;
-  --yy-line: #eadfd4;
+  --yy-cream: #f8f3eb;
+  --yy-cream-deep: #ede1d2;
+  --yy-paper: #fffdf9;
+  --yy-apricot: #e99a5c;
+  --yy-apricot-soft: #f4cba8;
+  --yy-tomato: #cf6447;
+  --yy-sage: #839779;
+  --yy-ink: #30251f;
+  --yy-muted: #84746a;
+  --yy-line: #e7dbcf;
+  --yy-shadow: 0 18px 55px rgba(77, 53, 38, 0.09);
+}
+
+html {
+  background: #efe7dc;
 }
 
 body {
@@ -30,18 +37,144 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top, rgba(242, 172, 114, 0.12), transparent 28%),
-    linear-gradient(180deg, #fbf7f2 0%, #f8f2ea 100%);
+    radial-gradient(circle at 12% 10%, rgba(233, 154, 92, 0.16), transparent 25rem),
+    radial-gradient(circle at 88% 72%, rgba(131, 151, 121, 0.13), transparent 26rem),
+    #efe7dc;
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E");
+  content: '';
+  pointer-events: none;
 }
 
 #app {
   min-height: 100vh;
 }
 
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
 button {
+  -webkit-tap-highlight-color: transparent;
   cursor: pointer;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid rgba(207, 100, 71, 0.24);
+  outline-offset: 2px;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 * {
   box-sizing: border-box;
+}
+
+::selection {
+  color: var(--yy-ink);
+  background: var(--yy-apricot-soft);
+}
+
+.yy-shell {
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+  background:
+    linear-gradient(180deg, rgba(255, 253, 249, 0.72), transparent 12rem),
+    var(--yy-cream);
+  box-shadow: 0 0 80px rgba(62, 42, 30, 0.1);
+}
+
+.yy-page {
+  padding: 1.5rem 1.25rem 2rem;
+}
+
+.yy-display {
+  font-family: 'STSong', 'Songti SC', 'SimSun', serif;
+  letter-spacing: -0.03em;
+}
+
+.yy-card {
+  border: 1px solid rgba(231, 219, 207, 0.82);
+  border-radius: 1.75rem;
+  background: rgba(255, 253, 249, 0.9);
+  box-shadow: var(--yy-shadow);
+}
+
+.yy-kicker {
+  color: var(--yy-tomato);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.yy-icon-button,
+.yy-primary-button,
+.yy-soft-button {
+  transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.yy-primary-button:hover {
+  box-shadow: 0 10px 25px rgba(48, 37, 31, 0.2);
+}
+
+.yy-soft-button:hover {
+  background: var(--yy-cream-deep);
+}
+
+.yy-enter {
+  animation: yy-enter 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.yy-enter-delay-1 {
+  animation-delay: 70ms;
+}
+
+.yy-enter-delay-2 {
+  animation-delay: 140ms;
+}
+
+@keyframes yy-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 520px) {
+  .yy-page {
+    padding-right: 1.75rem;
+    padding-left: 1.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

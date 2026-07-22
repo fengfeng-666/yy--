@@ -51,7 +51,7 @@ function formatPrice(price: number) {
 </script>
 
 <template>
-  <section class="min-h-screen space-y-4 bg-[var(--yy-cream)] px-5 pb-8 pt-6">
+  <section class="yy-shell mx-auto min-h-screen max-w-[480px] space-y-4 px-5 pb-8 pt-6">
     <header class="flex items-center gap-3">
       <button
         type="button"
@@ -86,9 +86,6 @@ function formatPrice(price: number) {
         <div class="space-y-3 p-5">
           <div class="flex flex-wrap items-center gap-2">
             <h2 class="text-2xl font-semibold text-[var(--yy-ink)]">{{ dish.name }}</h2>
-            <span class="rounded-full bg-[var(--yy-cream)] px-3 py-1 text-xs text-[var(--yy-muted)]">
-              {{ dish.category.name }}
-            </span>
             <span
               class="rounded-full px-3 py-1 text-xs"
               :class="

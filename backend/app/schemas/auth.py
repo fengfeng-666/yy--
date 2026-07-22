@@ -40,6 +40,18 @@ class LoginRequest(BaseModel):
         return normalized
 
 
+class UpdateProfileRequest(BaseModel):
+    nickname: str = Field(min_length=1, max_length=32)
+
+    @field_validator("nickname")
+    @classmethod
+    def normalize_nickname(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("昵称不能为空")
+        return normalized
+
+
 class UserProfile(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

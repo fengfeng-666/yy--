@@ -72,7 +72,7 @@ async def create_family(client: AsyncClient, headers: dict[str, str]) -> None:
 
 
 @pytest.mark.asyncio
-async def test_dish_category_dish_crud_and_upload(test_client: AsyncClient) -> None:
+async def test_dish_crud_and_upload(test_client: AsyncClient) -> None:
     access_token = await register_and_login(test_client, username="dish_owner")
     headers = {"Authorization": f"Bearer {access_token}"}
     await create_family(test_client, headers)
@@ -87,18 +87,9 @@ async def test_dish_category_dish_crud_and_upload(test_client: AsyncClient) -> N
     assert upload_data["path"].startswith("/uploads/families/1/dishes/")
     assert upload_data["url"].startswith("http://testserver/uploads/families/1/dishes/")
 
-    category_response = await test_client.post(
-        "/dish-categories",
-        json={"name": "下饭菜", "sort_order": 1},
-        headers=headers,
-    )
-    assert category_response.status_code == 200
-    category_id = category_response.json()["data"]["id"]
-
     create_dish_response = await test_client.post(
         "/dishes",
         json={
-            "category_id": category_id,
             "name": "麻婆豆腐",
             "description": "又香又下饭",
             "price": 22.5,
@@ -111,24 +102,14 @@ async def test_dish_category_dish_crud_and_upload(test_client: AsyncClient) -> N
     dish_body = create_dish_response.json()["data"]
     dish_id = dish_body["id"]
     assert dish_body["name"] == "麻婆豆腐"
-    assert dish_body["category"]["name"] == "下饭菜"
 
     list_response = await test_client.get("/dishes", headers=headers)
     assert list_response.status_code == 200
     assert len(list_response.json()["data"]) == 1
 
-    filtered_response = await test_client.get(
-        "/dishes",
-        params={"category_id": category_id},
-        headers=headers,
-    )
-    assert filtered_response.status_code == 200
-    assert filtered_response.json()["data"][0]["id"] == dish_id
-
     update_dish_response = await test_client.patch(
         f"/dishes/{dish_id}",
         json={
-            "category_id": category_id,
             "name": "麻婆豆腐（微辣）",
             "description": "更适合日常晚餐",
             "price": 24,
@@ -140,18 +121,5 @@ async def test_dish_category_dish_crud_and_upload(test_client: AsyncClient) -> N
     assert update_dish_response.status_code == 200
     assert update_dish_response.json()["data"]["is_available"] is False
 
-    delete_category_response = await test_client.delete(
-        f"/dish-categories/{category_id}",
-        headers=headers,
-    )
-    assert delete_category_response.status_code == 409
-    assert delete_category_response.json()["message"] == "分类下还有菜品，不能删除"
-
     delete_dish_response = await test_client.delete(f"/dishes/{dish_id}", headers=headers)
     assert delete_dish_response.status_code == 200
-
-    delete_category_response = await test_client.delete(
-        f"/dish-categories/{category_id}",
-        headers=headers,
-    )
-    assert delete_category_response.status_code == 200

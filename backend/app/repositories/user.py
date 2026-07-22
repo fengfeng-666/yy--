@@ -30,3 +30,15 @@ async def create_user(
     await session.commit()
     await session.refresh(user)
     return user
+
+
+async def update_user_nickname(
+    session: AsyncSession,
+    *,
+    user: User,
+    nickname: str,
+) -> User:
+    user.nickname = nickname
+    await session.commit()
+    await session.refresh(user)
+    return user

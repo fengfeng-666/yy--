@@ -36,6 +36,19 @@ class CreateMealOrderRequest(BaseModel):
         return normalized or None
 
 
+class CreateMealReviewRequest(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    content: str | None = Field(default=None, max_length=500)
+
+    @field_validator("content")
+    @classmethod
+    def normalize_content(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+
 class DishBriefProfile(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -69,6 +82,19 @@ class OrderStatusLogProfile(BaseModel):
     operator: UserProfile
 
 
+class MealReviewProfile(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    meal_order_id: int
+    reviewer_id: int
+    rating: int
+    content: str | None
+    created_at: datetime
+    updated_at: datetime
+    reviewer: UserProfile
+
+
 class MealOrderProfile(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -87,3 +113,4 @@ class MealOrderProfile(BaseModel):
     cook: UserProfile
     items: list[MealOrderItemProfile] = Field(default_factory=list)
     status_logs: list[OrderStatusLogProfile] = Field(default_factory=list)
+    review: MealReviewProfile | None = None

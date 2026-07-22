@@ -3,6 +3,7 @@ import { onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { showFailToast, showSuccessToast } from 'vant'
 import { useRouter } from 'vue-router'
+import { CalendarClock, CheckCircle2, ChevronRight, Clock3, Plus, Utensils } from 'lucide-vue-next'
 
 import { useAuthStore } from '@/stores/auth'
 import { useOrderStore } from '@/stores/order'
@@ -73,41 +74,43 @@ function canAccept(order: MealOrder) {
 </script>
 
 <template>
-  <section class="space-y-4 px-5 pb-8 pt-6">
-    <header class="flex items-start justify-between gap-4">
+  <section class="yy-page space-y-5 pb-8 pt-5">
+    <header class="yy-enter flex items-end justify-between gap-4 px-1">
       <div>
-        <p class="text-sm text-[var(--yy-muted)]">点菜中心</p>
-        <h1 class="mt-1 text-2xl font-semibold text-[var(--yy-ink)]">正在流转的菜单</h1>
+        <p class="yy-kicker">Meal requests</p>
+        <h1 class="yy-display mt-2 text-[32px] font-bold leading-none text-[var(--yy-ink)]">今天吃什么</h1>
+        <p class="mt-3 text-sm text-[var(--yy-muted)]">每一份点菜，都是一句具体的“想和你吃饭”。</p>
       </div>
       <button
         type="button"
-        class="rounded-full bg-[var(--yy-ink)] px-4 py-2 text-sm text-white"
+        class="yy-primary-button flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--yy-ink)] text-white shadow-[0_12px_25px_rgba(48,37,31,0.2)]"
+        aria-label="发起点菜"
         @click="goToCreateOrder"
       >
-        发起点菜
+        <Plus class="h-5 w-5" />
       </button>
     </header>
 
-    <div class="flex gap-2 overflow-x-auto pb-1">
+    <div class="yy-card yy-enter yy-enter-delay-1 grid grid-cols-2 gap-1 p-1.5">
       <button
         type="button"
-        class="rounded-full px-4 py-2 text-sm"
+        class="rounded-[18px] px-4 py-2.5 text-sm font-medium transition"
         :class="
           activeRole === 'to_me'
             ? 'bg-[var(--yy-ink)] text-white'
-            : 'bg-white text-[var(--yy-muted)] shadow-sm'
+            : 'text-[var(--yy-muted)] hover:bg-[var(--yy-cream)]'
         "
         @click="activeRole = 'to_me'"
       >
-        对方点给我
+        点给我的
       </button>
       <button
         type="button"
-        class="rounded-full px-4 py-2 text-sm"
+        class="rounded-[18px] px-4 py-2.5 text-sm font-medium transition"
         :class="
           activeRole === 'my_requested'
             ? 'bg-[var(--yy-ink)] text-white'
-            : 'bg-white text-[var(--yy-muted)] shadow-sm'
+            : 'text-[var(--yy-muted)] hover:bg-[var(--yy-cream)]'
         "
         @click="activeRole = 'my_requested'"
       >
@@ -115,40 +118,43 @@ function canAccept(order: MealOrder) {
       </button>
     </div>
 
-    <div class="flex gap-2 overflow-x-auto pb-1">
+    <div class="flex items-center gap-2 px-1">
       <button
         type="button"
-        class="rounded-full px-4 py-2 text-sm"
+        class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition"
         :class="
           activeStatus === 'pending'
-            ? 'bg-[var(--yy-ink)] text-white'
-            : 'bg-white text-[var(--yy-muted)] shadow-sm'
+            ? 'bg-[#fff0e3] font-medium text-[var(--yy-tomato)]'
+            : 'text-[var(--yy-muted)] hover:bg-white/70'
         "
         @click="activeStatus = 'pending'"
       >
-        待确认
+        <Clock3 class="h-4 w-4" /> 待确认
       </button>
       <button
         type="button"
-        class="rounded-full px-4 py-2 text-sm"
+        class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition"
         :class="
           activeStatus === 'accepted'
-            ? 'bg-[var(--yy-ink)] text-white'
-            : 'bg-white text-[var(--yy-muted)] shadow-sm'
+            ? 'bg-[#edf2e9] font-medium text-[#627459]'
+            : 'text-[var(--yy-muted)] hover:bg-white/70'
         "
         @click="activeStatus = 'accepted'"
       >
-        已接受
+        <CheckCircle2 class="h-4 w-4" /> 已接受
       </button>
     </div>
 
-    <div v-if="loading" class="rounded-[28px] bg-white p-8 text-center text-sm text-[var(--yy-muted)]">
+    <div v-if="loading" class="yy-card p-8 text-center text-sm text-[var(--yy-muted)]">
       正在加载点菜列表...
     </div>
 
-    <div v-else-if="!orders.length" class="rounded-[28px] bg-white p-8 text-center shadow-sm">
-      <p class="text-lg font-medium text-[var(--yy-ink)]">暂时没有相关点菜</p>
-      <p class="mt-2 text-sm text-[var(--yy-muted)]">切换筛选看看，或者先发起一次新的点菜。</p>
+    <div v-else-if="!orders.length" class="yy-card p-8 text-center">
+      <span class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#fff0e3] text-[var(--yy-tomato)]">
+        <Utensils class="h-6 w-6" />
+      </span>
+      <p class="yy-display mt-4 text-xl font-bold text-[var(--yy-ink)]">暂时没有相关点菜</p>
+      <p class="mt-2 text-sm leading-6 text-[var(--yy-muted)]">切换筛选看看，或者先发起一份新的点菜。</p>
       <button
         type="button"
         class="mt-5 rounded-full bg-[var(--yy-ink)] px-5 py-2 text-sm text-white"
@@ -162,24 +168,29 @@ function canAccept(order: MealOrder) {
       <article
         v-for="order in orders"
         :key="order.id"
-        class="rounded-[28px] border border-[var(--yy-line)] bg-white p-5 shadow-[0_16px_40px_rgba(87,64,46,0.06)]"
+        class="yy-card group cursor-pointer p-5 transition hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(77,53,38,0.13)]"
         @click="goToOrderDetail(order.id)"
       >
-        <div class="flex items-center justify-between gap-3">
-          <div>
-            <h2 class="text-lg font-semibold text-[var(--yy-ink)]">
+        <div class="flex items-start gap-4">
+          <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--yy-cream)] text-[var(--yy-tomato)]">
+            <CalendarClock class="h-5 w-5" />
+          </span>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center justify-between gap-3">
+              <h2 class="text-base font-semibold text-[var(--yy-ink)]">
               {{ order.planned_date }} {{ order.planned_time?.slice(0, 5) || '' }}
-            </h2>
+              </h2>
+              <span class="rounded-full px-3 py-1 text-[10px] font-medium" :class="statusClass(order.status)">
+                {{ statusText(order.status) }}
+              </span>
+            </div>
             <p class="mt-1 text-sm text-[var(--yy-muted)]">
-              {{ order.requester.nickname }} -> {{ order.cook.nickname }}
+              {{ order.requester.nickname }} 点给 {{ order.cook.nickname }}
             </p>
           </div>
-          <span class="rounded-full px-3 py-1 text-xs" :class="statusClass(order.status)">
-            {{ statusText(order.status) }}
-          </span>
         </div>
 
-        <p class="mt-3 text-sm leading-6 text-[var(--yy-muted)]">
+        <p class="mt-4 rounded-2xl bg-[var(--yy-cream)] px-4 py-3 text-sm font-medium leading-6 text-[var(--yy-ink)]">
           {{ orderSummary(order) }}
         </p>
 
@@ -187,21 +198,21 @@ function canAccept(order: MealOrder) {
           备注：{{ order.note }}
         </p>
 
-        <div class="mt-4 flex gap-3">
+        <div class="mt-4 flex items-center gap-3">
           <button
             v-if="canAccept(order)"
             type="button"
-            class="rounded-full bg-[var(--yy-ink)] px-4 py-2 text-sm text-white"
+            class="yy-primary-button rounded-full bg-[var(--yy-ink)] px-4 py-2 text-sm text-white"
             @click.stop="acceptCurrentOrder(order.id)"
           >
             接受
           </button>
           <button
             type="button"
-            class="rounded-full bg-[var(--yy-cream)] px-4 py-2 text-sm text-[var(--yy-ink)]"
+            class="ml-auto inline-flex items-center gap-1 text-xs font-medium text-[var(--yy-muted)]"
             @click.stop="goToOrderDetail(order.id)"
           >
-            查看详情
+            查看详情 <ChevronRight class="h-3.5 w-3.5" />
           </button>
         </div>
       </article>

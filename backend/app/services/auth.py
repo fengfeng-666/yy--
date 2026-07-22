@@ -5,8 +5,15 @@ from app.core.constants import ErrorCode
 from app.core.exceptions import AppException
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models.user import User
-from app.repositories.user import create_user, get_user_by_username
-from app.schemas.auth import AuthResponse, AuthTokens, LoginRequest, RegisterRequest, UserProfile
+from app.repositories.user import create_user, get_user_by_username, update_user_nickname
+from app.schemas.auth import (
+    AuthResponse,
+    AuthTokens,
+    LoginRequest,
+    RegisterRequest,
+    UpdateProfileRequest,
+    UserProfile,
+)
 
 
 async def register_user(session: AsyncSession, payload: RegisterRequest) -> AuthResponse:
@@ -46,6 +53,16 @@ async def login_user(session: AsyncSession, payload: LoginRequest) -> AuthRespon
 
     token, expires_at = create_access_token(user.id)
     return build_auth_response(user, token, expires_at)
+
+
+async def update_profile(
+    session: AsyncSession,
+    *,
+    current_user: User,
+    payload: UpdateProfileRequest,
+) -> UserProfile:
+    user = await update_user_nickname(session, user=current_user, nickname=payload.nickname)
+    return UserProfile.model_validate(user)
 
 
 def build_auth_response(user: User, access_token: str, expires_at) -> AuthResponse:

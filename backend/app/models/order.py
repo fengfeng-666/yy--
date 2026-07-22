@@ -1,4 +1,4 @@
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Time, func
+from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Time, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
@@ -31,6 +31,11 @@ class MealOrder(TimestampMixin, Base):
     status_logs: Mapped[list["OrderStatusLog"]] = relationship(
         back_populates="order",
         cascade="all, delete-orphan",
+    )
+    review: Mapped["MealReview | None"] = relationship(
+        back_populates="order",
+        cascade="all, delete-orphan",
+        uselist=False,
     )
 
 
@@ -71,3 +76,20 @@ class OrderStatusLog(Base):
 
     order: Mapped[MealOrder] = relationship(back_populates="status_logs")
     operator = relationship("User")
+
+
+class MealReview(TimestampMixin, Base):
+    __tablename__ = "meal_reviews"
+    __table_args__ = (UniqueConstraint("meal_order_id", name="uq_meal_reviews_order"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    meal_order_id: Mapped[int] = mapped_column(
+        ForeignKey("meal_orders.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    reviewer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    rating: Mapped[int] = mapped_column(Integer, nullable=False)
+    content: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    order: Mapped[MealOrder] = relationship(back_populates="review")
+    reviewer = relationship("User")

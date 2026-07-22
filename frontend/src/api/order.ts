@@ -1,6 +1,12 @@
 import http from '@/api/http'
 import type { ApiResponse } from '@/types/api'
-import type { CreateMealOrderPayload, MealOrder, MealOrderRole, MealOrderStatus } from '@/types/order'
+import type {
+  CreateMealOrderPayload,
+  CreateMealReviewPayload,
+  MealOrder,
+  MealOrderRole,
+  MealOrderStatus,
+} from '@/types/order'
 
 export async function fetchOrders(params?: {
   role?: MealOrderRole
@@ -22,5 +28,18 @@ export async function fetchOrderDetail(orderId: number): Promise<MealOrder> {
 
 export async function acceptOrder(orderId: number): Promise<MealOrder> {
   const { data } = await http.post<ApiResponse<MealOrder>>(`/orders/${orderId}/accept`)
+  return data.data
+}
+
+export async function fetchDiningHistory(): Promise<MealOrder[]> {
+  const { data } = await http.get<ApiResponse<MealOrder[]>>('/orders/history')
+  return data.data
+}
+
+export async function createMealReview(
+  orderId: number,
+  payload: CreateMealReviewPayload,
+): Promise<MealOrder> {
+  const { data } = await http.post<ApiResponse<MealOrder>>(`/orders/${orderId}/review`, payload)
   return data.data
 }

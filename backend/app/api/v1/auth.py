@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends
 
 from app.api.deps import DbSession, get_current_user
 from app.models.user import User
-from app.schemas.auth import AuthResponse, LoginRequest, RegisterRequest, UserProfile
+from app.schemas.auth import AuthResponse, LoginRequest, RegisterRequest, UpdateProfileRequest, UserProfile
 from app.schemas.common import ApiResponse, success_response
-from app.services.auth import login_user, register_user
+from app.services.auth import login_user, register_user, update_profile
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -29,3 +29,13 @@ async def get_me(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> ApiResponse[UserProfile]:
     return success_response(data=UserProfile.model_validate(current_user))
+
+
+@router.patch("/me", response_model=ApiResponse[UserProfile], summary="修改个人资料")
+async def patch_me(
+    payload: UpdateProfileRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: DbSession,
+) -> ApiResponse[UserProfile]:
+    profile = await update_profile(session, current_user=current_user, payload=payload)
+    return success_response(data=profile, message="个人资料已更新")

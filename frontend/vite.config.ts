@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
 import Inspector from 'unplugin-vue-dev-locator/vite'
@@ -11,7 +11,12 @@ export default defineConfig({
     strictPort: true,
   },
   build: {
-    sourcemap: 'hidden',
+    sourcemap: false,
+  },
+  test: {
+    setupFiles: ['./src/test/setup.ts'],
+    clearMocks: true,
+    restoreMocks: true,
   },
   plugins: [
     vue(),

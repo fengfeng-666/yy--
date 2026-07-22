@@ -1,44 +1,14 @@
 import http from '@/api/http'
 import type { ApiResponse } from '@/types/api'
 import type {
-  CreateDishCategoryPayload,
   CreateDishPayload,
-  DishCategory,
   DishItem,
   ImageUploadPayload,
-  UpdateDishCategoryPayload,
   UpdateDishPayload,
 } from '@/types/dish'
 
-export async function fetchDishCategories(): Promise<DishCategory[]> {
-  const { data } = await http.get<ApiResponse<DishCategory[]>>('/dish-categories')
-  return data.data
-}
-
-export async function createDishCategory(payload: CreateDishCategoryPayload): Promise<DishCategory> {
-  const { data } = await http.post<ApiResponse<DishCategory>>('/dish-categories', payload)
-  return data.data
-}
-
-export async function updateDishCategory(
-  categoryId: number,
-  payload: UpdateDishCategoryPayload,
-): Promise<DishCategory> {
-  const { data } = await http.patch<ApiResponse<DishCategory>>(
-    `/dish-categories/${categoryId}`,
-    payload,
-  )
-  return data.data
-}
-
-export async function deleteDishCategory(categoryId: number): Promise<void> {
-  await http.delete<ApiResponse<null>>(`/dish-categories/${categoryId}`)
-}
-
-export async function fetchDishes(categoryId?: number): Promise<DishItem[]> {
-  const { data } = await http.get<ApiResponse<DishItem[]>>('/dishes', {
-    params: categoryId ? { category_id: categoryId } : undefined,
-  })
+export async function fetchDishes(): Promise<DishItem[]> {
+  const { data } = await http.get<ApiResponse<DishItem[]>>('/dishes')
   return data.data
 }
 

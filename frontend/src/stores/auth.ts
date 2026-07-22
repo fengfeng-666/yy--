@@ -1,8 +1,8 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 
-import { fetchCurrentUser, login, register } from '@/api/auth'
-import type { AuthPayload, LoginPayload, RegisterPayload, UserProfile } from '@/types/api'
+import { fetchCurrentUser, login, register, updateProfile } from '@/api/auth'
+import type { AuthPayload, LoginPayload, RegisterPayload, UpdateProfilePayload, UserProfile } from '@/types/api'
 
 const TOKEN_STORAGE_KEY = 'yy-kitchen-access-token'
 const USER_STORAGE_KEY = 'yy-kitchen-user'
@@ -71,6 +71,12 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function updateCurrentProfile(payload: UpdateProfilePayload) {
+    currentUser.value = await updateProfile(payload)
+    window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(currentUser.value))
+    return currentUser.value
+  }
+
   return {
     accessToken,
     currentUser,
@@ -81,5 +87,6 @@ export const useAuthStore = defineStore('auth', () => {
     loginWithPassword,
     registerWithPassword,
     restoreSession,
+    updateCurrentProfile,
   }
 })

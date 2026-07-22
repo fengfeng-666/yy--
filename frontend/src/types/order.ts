@@ -30,6 +30,17 @@ export interface OrderStatusLog {
   operator: UserProfile
 }
 
+export interface MealReview {
+  id: number
+  meal_order_id: number
+  reviewer_id: number
+  rating: number
+  content: string | null
+  created_at: string
+  updated_at: string
+  reviewer: UserProfile
+}
+
 export interface MealOrder {
   id: number
   family_id: number
@@ -46,6 +57,7 @@ export interface MealOrder {
   cook: UserProfile
   items: MealOrderItem[]
   status_logs: OrderStatusLog[]
+  review: MealReview | null
 }
 
 export interface CreateMealOrderItemPayload {
@@ -61,4 +73,9 @@ export interface CreateMealOrderPayload {
   planned_time?: string
   note?: string
   items: CreateMealOrderItemPayload[]
+}
+
+export interface CreateMealReviewPayload {
+  rating: number
+  content?: string
 }

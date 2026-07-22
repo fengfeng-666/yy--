@@ -115,7 +115,7 @@ async function submitOrder() {
 </script>
 
 <template>
-  <section class="min-h-screen space-y-4 bg-[var(--yy-cream)] px-5 pb-8 pt-6">
+  <section class="yy-shell mx-auto min-h-screen max-w-[480px] space-y-4 px-5 pb-8 pt-6">
     <header class="flex items-center gap-3">
       <button
         type="button"
@@ -201,7 +201,6 @@ async function submitOrder() {
                 <div class="flex items-start justify-between gap-3">
                   <div>
                     <h3 class="text-base font-medium text-[var(--yy-ink)]">{{ dish.name }}</h3>
-                    <p class="mt-1 text-sm text-[var(--yy-muted)]">{{ dish.category.name }}</p>
                   </div>
                   <span class="text-sm font-medium text-[var(--yy-ink)]">¥ {{ dish.price.toFixed(2) }}</span>
                 </div>

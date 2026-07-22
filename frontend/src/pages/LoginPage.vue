@@ -2,6 +2,7 @@
 import { computed, reactive, ref } from 'vue'
 import { showFailToast, showSuccessToast } from 'vant'
 import { useRoute, useRouter } from 'vue-router'
+import { ArrowRight, ChefHat, Sparkles } from 'lucide-vue-next'
 
 import { useAuthStore } from '@/stores/auth'
 import { useFamilyStore } from '@/stores/family'
@@ -78,10 +79,25 @@ async function submitForm() {
 </script>
 
 <template>
-  <section class="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(242,172,114,0.18),_transparent_42%),_var(--yy-cream)] px-6 py-10">
-    <div class="w-full max-w-[380px] rounded-[32px] border border-white/70 bg-white/90 p-8 shadow-[0_24px_80px_rgba(87,64,46,0.12)] backdrop-blur">
-      <p class="text-sm font-medium tracking-[0.3em] text-[var(--yy-muted)]">YY KITCHEN</p>
-      <h1 class="mt-4 text-3xl font-semibold text-[var(--yy-ink)]">{{ pageTitle }}</h1>
+  <section class="relative flex min-h-screen items-center justify-center overflow-hidden bg-[var(--yy-cream)] px-6 py-10">
+    <div class="absolute -left-28 -top-28 h-72 w-72 rounded-full bg-[var(--yy-apricot)]/20 blur-3xl" aria-hidden="true"></div>
+    <div class="absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-[var(--yy-sage)]/20 blur-3xl" aria-hidden="true"></div>
+
+    <div class="yy-enter relative w-full max-w-[410px] overflow-hidden rounded-[38px] border border-white/80 bg-white/85 p-8 shadow-[0_30px_90px_rgba(77,53,38,0.14)] backdrop-blur-xl">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--yy-ink)] text-white">
+            <ChefHat class="h-5 w-5" />
+          </span>
+          <div>
+            <p class="yy-kicker">YY Private Kitchen</p>
+            <p class="mt-0.5 text-xs text-[var(--yy-muted)]">两个人的家庭餐桌</p>
+          </div>
+        </div>
+        <Sparkles class="h-5 w-5 text-[var(--yy-apricot)]" aria-hidden="true" />
+      </div>
+
+      <h1 class="yy-display mt-9 text-[36px] font-bold leading-tight text-[var(--yy-ink)]">{{ pageTitle }}</h1>
       <p class="mt-3 text-sm leading-6 text-[var(--yy-muted)]">
         {{ pageDescription }}
       </p>
@@ -111,7 +127,8 @@ async function submitForm() {
           type="text"
           autocomplete="username"
           placeholder="用户名"
-          class="w-full rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3 text-sm text-[var(--yy-ink)] outline-none transition focus:border-[var(--yy-apricot)]"
+          aria-label="用户名"
+          class="w-full rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3.5 text-sm text-[var(--yy-ink)] outline-none transition focus:border-[var(--yy-apricot)] focus:bg-white"
         />
         <input
           v-if="mode === 'register'"
@@ -119,22 +136,25 @@ async function submitForm() {
           type="text"
           autocomplete="nickname"
           placeholder="昵称（可选）"
-          class="w-full rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3 text-sm text-[var(--yy-ink)] outline-none transition focus:border-[var(--yy-apricot)]"
+          aria-label="昵称"
+          class="w-full rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3.5 text-sm text-[var(--yy-ink)] outline-none transition focus:border-[var(--yy-apricot)] focus:bg-white"
         />
         <input
           v-model="form.password"
           type="password"
-          autocomplete="current-password"
+          :autocomplete="mode === 'login' ? 'current-password' : 'new-password'"
           placeholder="密码"
-          class="w-full rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3 text-sm text-[var(--yy-ink)] outline-none transition focus:border-[var(--yy-apricot)]"
+          aria-label="密码"
+          class="w-full rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3.5 text-sm text-[var(--yy-ink)] outline-none transition focus:border-[var(--yy-apricot)] focus:bg-white"
         />
 
         <button
           type="submit"
-          class="w-full rounded-full bg-[var(--yy-ink)] px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          class="yy-primary-button flex w-full items-center justify-center gap-2 rounded-full bg-[var(--yy-ink)] px-5 py-3.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
           :disabled="submitting"
         >
           {{ submitting ? '提交中...' : submitText }}
+          <ArrowRight v-if="!submitting" class="h-4 w-4" />
         </button>
       </form>
 

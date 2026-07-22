@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { closeToast, showConfirmDialog, showFailToast, showSuccessToast } from 'vant'
 import { useRouter } from 'vue-router'
+import { ChevronRight, ImagePlus, Pencil, Plus, Search, Trash2, Utensils } from 'lucide-vue-next'
 
 import { useDishStore } from '@/stores/dish'
 import type { DishItem } from '@/types/dish'
@@ -10,59 +11,41 @@ import { resolveAssetUrl } from '@/utils/assets'
 
 const router = useRouter()
 const dishStore = useDishStore()
-const { categories, dishes, loading, selectedCategoryId } = storeToRefs(dishStore)
+const { dishes, loading } = storeToRefs(dishStore)
 
 const isDishPopupVisible = ref(false)
-const isCategoryPopupVisible = ref(false)
 const isSubmittingDish = ref(false)
-const isSubmittingCategory = ref(false)
 const isUploadingImage = ref(false)
 const fileInputRef = ref<HTMLInputElement | null>(null)
-
-const newCategoryForm = reactive({
-  name: '',
-  sortOrder: 0,
-})
+const searchText = ref('')
 
 const dishForm = reactive({
   id: null as number | null,
   name: '',
-  categoryId: null as number | null,
   description: '',
   priceText: '',
   imageUrl: '',
   isAvailable: true,
 })
 
-const categoryDrafts = ref<Record<number, { name: string; sortOrder: number }>>({})
-
 const dishPopupTitle = computed(() => (dishForm.id ? '编辑菜品' : '新增菜品'))
 const currentImagePreview = computed(() => resolveAssetUrl(dishForm.imageUrl))
+const filteredDishes = computed(() => {
+  const keyword = searchText.value.trim().toLocaleLowerCase()
+  if (!keyword) return dishes.value
+  return dishes.value.filter((dish) =>
+    `${dish.name} ${dish.description ?? ''}`.toLocaleLowerCase().includes(keyword),
+  )
+})
 
 function resetDishForm() {
   dishForm.id = null
   dishForm.name = ''
-  dishForm.categoryId = categories.value[0]?.id ?? null
   dishForm.description = ''
   dishForm.priceText = ''
   dishForm.imageUrl = ''
   dishForm.isAvailable = true
 }
-
-function syncCategoryDrafts() {
-  categoryDrafts.value = categories.value.reduce(
-    (drafts, category) => {
-      drafts[category.id] = {
-        name: category.name,
-        sortOrder: category.sort_order,
-      }
-      return drafts
-    },
-    {} as Record<number, { name: string; sortOrder: number }>,
-  )
-}
-
-watch(categories, syncCategoryDrafts, { immediate: true })
 
 onMounted(async () => {
   try {
@@ -72,19 +55,7 @@ onMounted(async () => {
   }
 })
 
-async function changeCategory(categoryId: number | null) {
-  try {
-    await dishStore.loadDishes(categoryId)
-  } catch (error) {
-    showFailToast(error instanceof Error ? error.message : '加载菜品失败')
-  }
-}
-
 function openCreateDish() {
-  if (!categories.value.length) {
-    showFailToast('请先创建菜品分类')
-    return
-  }
   resetDishForm()
   isDishPopupVisible.value = true
 }
@@ -92,7 +63,6 @@ function openCreateDish() {
 function openEditDish(dish: DishItem) {
   dishForm.id = dish.id
   dishForm.name = dish.name
-  dishForm.categoryId = dish.category_id
   dishForm.description = dish.description ?? ''
   dishForm.priceText = dish.price.toFixed(2)
   dishForm.imageUrl = dish.image_url ?? ''
@@ -105,10 +75,7 @@ async function submitDishForm() {
     showFailToast('请输入菜品名称')
     return
   }
-  if (!dishForm.categoryId) {
-    showFailToast('请选择菜品分类')
-    return
-  }
+
   const price = Number(dishForm.priceText)
   if (Number.isNaN(price) || price < 0) {
     showFailToast('请输入正确的价格')
@@ -119,7 +86,6 @@ async function submitDishForm() {
   try {
     const payload = {
       name: dishForm.name.trim(),
-      category_id: dishForm.categoryId,
       description: dishForm.description.trim() || undefined,
       price,
       image_url: dishForm.imageUrl || undefined,
@@ -150,66 +116,6 @@ async function handleDeleteDish(dish: DishItem) {
     })
     await dishStore.removeDishItem(dish.id)
     showSuccessToast('菜品已删除')
-  } catch (error) {
-    if (error instanceof Error) {
-      showFailToast(error.message)
-    }
-  }
-}
-
-async function submitNewCategory() {
-  if (!newCategoryForm.name.trim()) {
-    showFailToast('请输入分类名称')
-    return
-  }
-
-  isSubmittingCategory.value = true
-  try {
-    await dishStore.createCategory({
-      name: newCategoryForm.name.trim(),
-      sort_order: newCategoryForm.sortOrder || categories.value.length + 1,
-    })
-    newCategoryForm.name = ''
-    newCategoryForm.sortOrder = 0
-    showSuccessToast('分类已创建')
-  } catch (error) {
-    showFailToast(error instanceof Error ? error.message : '创建分类失败')
-  } finally {
-    isSubmittingCategory.value = false
-  }
-}
-
-async function saveCategory(categoryId: number) {
-  const draft = categoryDrafts.value[categoryId]
-  if (!draft?.name.trim()) {
-    showFailToast('分类名称不能为空')
-    return
-  }
-
-  try {
-    await dishStore.editCategory(categoryId, {
-      name: draft.name.trim(),
-      sort_order: draft.sortOrder || 0,
-    })
-    showSuccessToast('分类已更新')
-  } catch (error) {
-    showFailToast(error instanceof Error ? error.message : '更新分类失败')
-  }
-}
-
-async function deleteCategoryItem(categoryId: number) {
-  const currentCategory = categories.value.find((item) => item.id === categoryId)
-  if (!currentCategory) {
-    return
-  }
-
-  try {
-    await showConfirmDialog({
-      title: '删除分类',
-      message: `确认删除「${currentCategory.name}」吗？`,
-    })
-    await dishStore.removeCategory(categoryId)
-    showSuccessToast('分类已删除')
   } catch (error) {
     if (error instanceof Error) {
       showFailToast(error.message)
@@ -252,145 +158,133 @@ async function openDishDetail(dishId: number) {
 </script>
 
 <template>
-  <section class="space-y-4 px-5 pb-8 pt-6">
-    <header class="flex items-start justify-between gap-4">
+  <section class="yy-page space-y-5 pb-8 pt-5">
+    <header class="yy-enter flex items-end justify-between gap-4 px-1">
       <div>
-        <p class="text-sm text-[var(--yy-muted)]">家庭菜单</p>
-        <h1 class="mt-1 text-2xl font-semibold text-[var(--yy-ink)]">今天想吃什么</h1>
-        <p class="mt-2 text-sm text-[var(--yy-muted)]">支持分类管理、菜品增删改和图片上传。</p>
+        <p class="yy-kicker">Family menu</p>
+        <h1 class="yy-display mt-2 text-[32px] font-bold leading-none text-[var(--yy-ink)]">今天想吃什么</h1>
+        <p class="mt-3 text-sm text-[var(--yy-muted)]">把你们的拿手菜，慢慢攒成一本家庭菜单。</p>
       </div>
       <button
         type="button"
-        class="rounded-full bg-[var(--yy-ink)] px-4 py-2 text-sm text-white"
+        class="yy-primary-button flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--yy-ink)] text-white shadow-[0_12px_25px_rgba(48,37,31,0.2)]"
+        aria-label="新增菜品"
         @click="openCreateDish"
       >
-        新增菜品
+        <Plus class="h-5 w-5" />
       </button>
     </header>
 
-    <div class="flex items-center gap-2 overflow-x-auto pb-1">
-      <button
-        type="button"
-        class="whitespace-nowrap rounded-full px-4 py-2 text-sm transition"
-        :class="
-          selectedCategoryId === null
-            ? 'bg-[var(--yy-ink)] text-white'
-            : 'bg-white text-[var(--yy-muted)] shadow-sm'
-        "
-        @click="changeCategory(null)"
-      >
-        全部
-      </button>
-      <button
-        v-for="category in categories"
-        :key="category.id"
-        type="button"
-        class="whitespace-nowrap rounded-full px-4 py-2 text-sm transition"
-        :class="
-          selectedCategoryId === category.id
-            ? 'bg-[var(--yy-ink)] text-white'
-            : 'bg-white text-[var(--yy-muted)] shadow-sm'
-        "
-        @click="changeCategory(category.id)"
-      >
-        {{ category.name }}
-      </button>
-      <button
-        type="button"
-        class="whitespace-nowrap rounded-full border border-[var(--yy-line)] bg-white px-4 py-2 text-sm text-[var(--yy-ink)]"
-        @click="isCategoryPopupVisible = true"
-      >
-        管理分类
-      </button>
+    <div class="yy-card yy-enter yy-enter-delay-1 flex items-center gap-3 px-4 py-3.5">
+      <Search class="h-5 w-5 shrink-0 text-[var(--yy-muted)]" aria-hidden="true" />
+      <input
+        v-model="searchText"
+        type="search"
+        placeholder="搜索菜名或描述"
+        class="min-w-0 flex-1 bg-transparent text-sm text-[var(--yy-ink)] outline-none placeholder:text-[var(--yy-muted)]/70"
+        aria-label="搜索菜品"
+      />
+      <span class="shrink-0 rounded-full bg-[var(--yy-cream)] px-2.5 py-1 text-[11px] text-[var(--yy-muted)]">
+        {{ filteredDishes.length }} 道
+      </span>
     </div>
 
-    <div class="rounded-[24px] bg-white px-4 py-3 text-sm text-[var(--yy-muted)] shadow-sm">
-      共 {{ dishes.length }} 道菜，{{ categories.length }} 个分类
-    </div>
-
-    <div v-if="loading" class="rounded-[28px] bg-white p-8 text-center text-sm text-[var(--yy-muted)]">
+    <div v-if="loading" class="yy-card p-8 text-center text-sm text-[var(--yy-muted)]">
       正在加载菜品...
     </div>
 
-    <div v-else-if="!dishes.length" class="rounded-[28px] bg-white p-8 text-center shadow-sm">
-      <p class="text-lg font-medium text-[var(--yy-ink)]">还没有菜品</p>
-      <p class="mt-2 text-sm text-[var(--yy-muted)]">先创建分类，再把常做菜录进家庭菜单。</p>
+    <div v-else-if="!filteredDishes.length" class="yy-card p-8 text-center">
+      <span class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#fff0e3] text-[var(--yy-tomato)]">
+        <Utensils class="h-6 w-6" />
+      </span>
+      <p class="yy-display mt-4 text-xl font-bold text-[var(--yy-ink)]">
+        {{ searchText ? '没有找到这道菜' : '还没有菜品' }}
+      </p>
+      <p class="mt-2 text-sm leading-6 text-[var(--yy-muted)]">
+        {{ searchText ? '换个关键词试试看。' : '把常做菜录进家庭菜单，之后点菜会更方便。' }}
+      </p>
       <button
+        v-if="!searchText"
         type="button"
-        class="mt-5 rounded-full bg-[var(--yy-ink)] px-5 py-2 text-sm text-white"
+        class="yy-primary-button mt-5 rounded-full bg-[var(--yy-ink)] px-5 py-2.5 text-sm text-white"
         @click="openCreateDish"
       >
         现在添加
       </button>
     </div>
 
-    <div v-else class="space-y-4">
+    <div v-else class="space-y-3">
       <article
-        v-for="dish in dishes"
+        v-for="dish in filteredDishes"
         :key="dish.id"
-        class="rounded-[28px] bg-white p-5 shadow-[0_16px_40px_rgba(87,64,46,0.06)]"
+        class="yy-card group overflow-hidden p-3 transition hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(77,53,38,0.13)]"
       >
-        <div
-          v-if="dish.image_url"
-          class="aspect-[4/3] overflow-hidden rounded-[22px] bg-[var(--yy-cream)]"
-        >
-          <img
-            :src="resolveAssetUrl(dish.image_url)"
-            :alt="dish.name"
-            class="h-full w-full object-cover"
-          />
-        </div>
-        <div
-          v-else
-          class="aspect-[4/3] rounded-[22px] bg-[linear-gradient(135deg,_rgba(242,172,114,0.4),_rgba(232,122,85,0.28))]"
-        ></div>
+        <div class="flex gap-4">
+          <button
+            type="button"
+            class="h-[118px] w-[118px] shrink-0 overflow-hidden rounded-[22px] bg-[var(--yy-cream)]"
+            :aria-label="`查看${dish.name}详情`"
+            @click="openDishDetail(dish.id)"
+          >
+            <img
+              v-if="dish.image_url"
+              :src="resolveAssetUrl(dish.image_url)"
+              :alt="dish.name"
+              class="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+            />
+            <span
+              v-else
+              class="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,_#f8dcc2,_#efb08c)] text-white/80"
+            >
+              <Utensils class="h-8 w-8" />
+            </span>
+          </button>
 
-        <div class="mt-4 flex items-start justify-between gap-4">
-          <div class="min-w-0 flex-1">
-            <div class="flex flex-wrap items-center gap-2">
-              <h2 class="text-lg font-semibold text-[var(--yy-ink)]">{{ dish.name }}</h2>
-              <span class="rounded-full bg-[var(--yy-cream)] px-3 py-1 text-xs text-[var(--yy-muted)]">
-                {{ dish.category.name }}
-              </span>
+          <div class="min-w-0 flex-1 py-1">
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <h2 class="truncate text-lg font-semibold text-[var(--yy-ink)]">{{ dish.name }}</h2>
+                <p class="mt-1 text-base font-semibold text-[var(--yy-tomato)]">{{ formatPrice(dish.price) }}</p>
+              </div>
               <span
-                class="rounded-full px-3 py-1 text-xs"
+                class="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium"
                 :class="
                   dish.is_available
-                    ? 'bg-emerald-50 text-emerald-700'
+                    ? 'bg-[#edf2e9] text-[#627459]'
                     : 'bg-slate-100 text-slate-500'
                 "
               >
                 {{ dish.is_available ? '上架中' : '已下架' }}
               </span>
             </div>
-            <p class="mt-2 text-base font-medium text-[var(--yy-ink)]">{{ formatPrice(dish.price) }}</p>
-            <p class="mt-2 text-sm leading-6 text-[var(--yy-muted)]">
+            <p class="mt-2 line-clamp-2 text-xs leading-5 text-[var(--yy-muted)]">
               {{ dish.description || '这道菜还没有补充描述。' }}
             </p>
-          </div>
-
-          <div class="flex flex-col gap-2">
-            <button
-              type="button"
-              class="rounded-full bg-[var(--yy-cream)] px-4 py-2 text-xs text-[var(--yy-ink)]"
-              @click="openDishDetail(dish.id)"
-            >
-              详情
-            </button>
-            <button
-              type="button"
-              class="rounded-full bg-[var(--yy-ink)] px-4 py-2 text-xs text-white"
-              @click="openEditDish(dish)"
-            >
-              编辑
-            </button>
-            <button
-              type="button"
-              class="rounded-full bg-red-50 px-4 py-2 text-xs text-red-600"
-              @click="handleDeleteDish(dish)"
-            >
-              删除
-            </button>
+            <div class="mt-3 flex items-center gap-2">
+              <button
+                type="button"
+                class="yy-icon-button flex h-8 w-8 items-center justify-center rounded-full bg-[var(--yy-cream)] text-[var(--yy-ink)]"
+                :aria-label="`编辑${dish.name}`"
+                @click="openEditDish(dish)"
+              >
+                <Pencil class="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                class="yy-icon-button flex h-8 w-8 items-center justify-center rounded-full bg-red-50 text-red-500"
+                :aria-label="`删除${dish.name}`"
+                @click="handleDeleteDish(dish)"
+              >
+                <Trash2 class="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                class="ml-auto inline-flex items-center gap-1 text-xs font-medium text-[var(--yy-muted)]"
+                @click="openDishDetail(dish.id)"
+              >
+                详情 <ChevronRight class="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       </article>
@@ -420,16 +314,6 @@ async function openDishDetail(dishId: number) {
           placeholder="菜品名称"
           class="w-full rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3 text-sm outline-none"
         />
-
-        <select
-          v-model.number="dishForm.categoryId"
-          class="w-full rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3 text-sm outline-none"
-        >
-          <option :value="null" disabled>请选择分类</option>
-          <option v-for="category in categories" :key="category.id" :value="category.id">
-            {{ category.name }}
-          </option>
-        </select>
 
         <input
           v-model.trim="dishForm.priceText"
@@ -471,6 +355,7 @@ async function openDishDetail(dishId: number) {
               :disabled="isUploadingImage"
               @click="triggerImageUpload"
             >
+              <ImagePlus class="mr-1 inline h-4 w-4" />
               {{ isUploadingImage ? '上传中...' : '上传图片' }}
             </button>
           </div>
@@ -489,94 +374,6 @@ async function openDishDetail(dishId: number) {
         >
           {{ isSubmittingDish ? '保存中...' : '保存菜品' }}
         </button>
-      </div>
-    </van-popup>
-
-    <van-popup
-      v-model:show="isCategoryPopupVisible"
-      round
-      position="bottom"
-      :style="{ maxWidth: '430px', margin: '0 auto', width: '100%', padding: '20px 20px 28px' }"
-    >
-      <div class="space-y-4">
-        <div class="flex items-center justify-between">
-          <h3 class="text-lg font-semibold text-[var(--yy-ink)]">菜品分类</h3>
-          <button
-            type="button"
-            class="text-sm text-[var(--yy-muted)]"
-            @click="isCategoryPopupVisible = false"
-          >
-            关闭
-          </button>
-        </div>
-
-        <div class="rounded-[24px] bg-[var(--yy-cream)] p-4">
-          <div class="grid grid-cols-[1fr_88px] gap-3">
-            <input
-              v-model.trim="newCategoryForm.name"
-              type="text"
-              placeholder="新增分类名称"
-              class="rounded-2xl border border-[var(--yy-line)] bg-white px-4 py-3 text-sm outline-none"
-            />
-            <input
-              v-model.number="newCategoryForm.sortOrder"
-              type="number"
-              min="0"
-              placeholder="排序"
-              class="rounded-2xl border border-[var(--yy-line)] bg-white px-4 py-3 text-sm outline-none"
-            />
-          </div>
-          <button
-            type="button"
-            class="mt-3 w-full rounded-full bg-[var(--yy-ink)] px-5 py-3 text-sm font-medium text-white"
-            :disabled="isSubmittingCategory"
-            @click="submitNewCategory"
-          >
-            {{ isSubmittingCategory ? '创建中...' : '新增分类' }}
-          </button>
-        </div>
-
-        <div v-if="!categories.length" class="rounded-2xl bg-[var(--yy-cream)] px-4 py-5 text-center text-sm text-[var(--yy-muted)]">
-          还没有分类，先创建一个吧。
-        </div>
-
-        <div v-else class="space-y-3">
-          <div
-            v-for="category in categories"
-            :key="category.id"
-            class="rounded-[24px] bg-[var(--yy-cream)] p-4"
-          >
-            <div class="grid grid-cols-[1fr_88px] gap-3">
-              <input
-                v-model.trim="categoryDrafts[category.id].name"
-                type="text"
-                class="rounded-2xl border border-[var(--yy-line)] bg-white px-4 py-3 text-sm outline-none"
-              />
-              <input
-                v-model.number="categoryDrafts[category.id].sortOrder"
-                type="number"
-                min="0"
-                class="rounded-2xl border border-[var(--yy-line)] bg-white px-4 py-3 text-sm outline-none"
-              />
-            </div>
-            <div class="mt-3 flex gap-3">
-              <button
-                type="button"
-                class="flex-1 rounded-full bg-[var(--yy-ink)] px-4 py-2 text-sm text-white"
-                @click="saveCategory(category.id)"
-              >
-                保存
-              </button>
-              <button
-                type="button"
-                class="flex-1 rounded-full bg-red-50 px-4 py-2 text-sm text-red-600"
-                @click="deleteCategoryItem(category.id)"
-              >
-                删除
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     </van-popup>
   </section>

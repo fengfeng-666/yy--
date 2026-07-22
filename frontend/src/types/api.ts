@@ -32,6 +32,10 @@ export interface RegisterPayload extends LoginPayload {
   nickname?: string
 }
 
+export interface UpdateProfilePayload {
+  nickname: string
+}
+
 export interface CreateFamilyPayload {
   name: string
   description?: string

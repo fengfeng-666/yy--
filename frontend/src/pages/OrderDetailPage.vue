@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, reactive } from 'vue'
 import { storeToRefs } from 'pinia'
 import { showFailToast, showSuccessToast } from 'vant'
 import { useRoute, useRouter } from 'vue-router'
@@ -15,6 +15,10 @@ const orderStore = useOrderStore()
 
 const { currentUser } = storeToRefs(authStore)
 const { currentOrder, detailLoading } = storeToRefs(orderStore)
+const reviewForm = reactive({
+  rating: 5,
+  content: '',
+})
 
 const canAccept = computed(
   () =>
@@ -25,6 +29,17 @@ const canAccept = computed(
 const sortedLogs = computed(() =>
   [...(currentOrder.value?.status_logs ?? [])].sort((a, b) => a.created_at.localeCompare(b.created_at)),
 )
+
+const canReview = computed(() => {
+  if (!currentOrder.value) {
+    return false
+  }
+  return (
+    currentOrder.value.status === 'accepted' &&
+    currentOrder.value.requester_id === currentUser.value?.id &&
+    !currentOrder.value.review
+  )
+})
 
 onMounted(async () => {
   const orderId = Number(route.params.id)
@@ -58,6 +73,24 @@ async function handleAccept() {
   }
 }
 
+async function handleReviewSubmit() {
+  if (!currentOrder.value) {
+    return
+  }
+  try {
+    await orderStore.submitMealReview(currentOrder.value.id, {
+      rating: reviewForm.rating,
+      content: reviewForm.content.trim() || undefined,
+    })
+    await orderStore.loadOrderDetail(currentOrder.value.id)
+    reviewForm.content = ''
+    reviewForm.rating = 5
+    showSuccessToast('评价已提交')
+  } catch (error) {
+    showFailToast(error instanceof Error ? error.message : '提交评价失败')
+  }
+}
+
 function statusText(status: string) {
   return status === 'accepted' ? '已接受' : '待确认'
 }
@@ -72,7 +105,7 @@ function assetUrl(url: string | null) {
 </script>
 
 <template>
-  <section class="min-h-screen space-y-4 bg-[var(--yy-cream)] px-5 pb-8 pt-6">
+  <section class="yy-shell mx-auto min-h-screen max-w-[480px] space-y-4 px-5 pb-8 pt-6">
     <header class="flex items-center gap-3">
       <button
         type="button"
@@ -169,6 +202,65 @@ function assetUrl(url: string | null) {
             </div>
             <p v-if="log.note" class="mt-1 text-sm text-[var(--yy-muted)]">{{ log.note }}</p>
           </div>
+        </div>
+      </article>
+
+      <article class="rounded-[28px] bg-white p-5 shadow-sm">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <p class="text-sm text-[var(--yy-muted)]">用餐评价</p>
+            <h2 class="mt-1 text-lg font-semibold text-[var(--yy-ink)]">给这顿饭留一句反馈</h2>
+          </div>
+          <span
+            class="rounded-full px-3 py-1 text-xs"
+            :class="currentOrder.review ? 'bg-emerald-50 text-emerald-700' : 'bg-orange-50 text-orange-700'"
+          >
+            {{ currentOrder.review ? `${currentOrder.review.rating} 分` : '未评价' }}
+          </span>
+        </div>
+
+        <div v-if="currentOrder.review" class="mt-4 rounded-2xl bg-[var(--yy-cream)] px-4 py-4">
+          <p class="text-sm font-medium text-[var(--yy-ink)]">
+            {{ currentOrder.review.reviewer.nickname }} 给出 {{ currentOrder.review.rating }} 分
+          </p>
+          <p v-if="currentOrder.review.content" class="mt-2 text-sm leading-6 text-[var(--yy-muted)]">
+            {{ currentOrder.review.content }}
+          </p>
+          <p class="mt-2 text-xs text-[var(--yy-muted)]">
+            {{ currentOrder.review.created_at.replace('T', ' ').slice(0, 16) }}
+          </p>
+        </div>
+
+        <div v-else-if="canReview" class="mt-4 space-y-3">
+          <select
+            v-model.number="reviewForm.rating"
+            class="w-full rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3 text-sm outline-none"
+          >
+            <option :value="5">5 分，很满意</option>
+            <option :value="4">4 分，好吃</option>
+            <option :value="3">3 分，还不错</option>
+            <option :value="2">2 分，可以改进</option>
+            <option :value="1">1 分，这次不太合口味</option>
+          </select>
+
+          <textarea
+            v-model.trim="reviewForm.content"
+            rows="3"
+            placeholder="写一句评价，比如清淡刚好、下次还想吃"
+            class="w-full rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3 text-sm outline-none"
+          ></textarea>
+
+          <button
+            type="button"
+            class="rounded-full bg-[var(--yy-ink)] px-5 py-3 text-sm font-medium text-white"
+            @click="handleReviewSubmit"
+          >
+            提交评价
+          </button>
+        </div>
+
+        <div v-else class="mt-4 rounded-2xl bg-[var(--yy-cream)] px-4 py-4 text-sm text-[var(--yy-muted)]">
+          评价会在点菜被接受后开放，且仅限发起点菜的人提交一次。
         </div>
       </article>
 

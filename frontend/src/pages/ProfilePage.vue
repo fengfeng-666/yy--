@@ -1,19 +1,46 @@
 <script setup lang="ts">
+import { reactive, ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import { showSuccessToast } from 'vant'
+import { showFailToast, showSuccessToast } from 'vant'
 import { useRouter } from 'vue-router'
 
 import { useAuthStore } from '@/stores/auth'
-import { useAppStore } from '@/stores/app'
 import { useFamilyStore } from '@/stores/family'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const appStore = useAppStore()
 const familyStore = useFamilyStore()
 const { currentUser } = storeToRefs(authStore)
-const { familyName } = storeToRefs(appStore)
-const { currentFamily, inviteCode, members } = storeToRefs(familyStore)
+
+const form = reactive({
+  nickname: currentUser.value?.nickname ?? '',
+})
+const saving = ref(false)
+
+function formatDate(value?: string | null) {
+  if (!value) {
+    return '暂无记录'
+  }
+  return value.replace('T', ' ').slice(0, 10)
+}
+
+async function submitProfile() {
+  const nickname = form.nickname.trim()
+  if (!nickname) {
+    showFailToast('请输入昵称')
+    return
+  }
+  try {
+    saving.value = true
+    await authStore.updateCurrentProfile({ nickname })
+    form.nickname = nickname
+    showSuccessToast('个人资料已保存')
+  } catch (error) {
+    showFailToast(error instanceof Error ? error.message : '保存个人资料失败')
+  } finally {
+    saving.value = false
+  }
+}
 
 async function logout() {
   familyStore.clearFamily()
@@ -21,74 +48,64 @@ async function logout() {
   showSuccessToast('已退出登录')
   await router.replace('/login')
 }
-
-async function goToDishes() {
-  await router.push('/dishes')
-}
 </script>
 
 <template>
-  <section class="space-y-4 px-5 pb-8 pt-6">
-    <header>
-      <p class="text-sm text-[var(--yy-muted)]">我的</p>
-      <h1 class="mt-1 text-2xl font-semibold text-[var(--yy-ink)]">家庭与个人设置</h1>
+  <section class="yy-page space-y-5 pb-8 pt-5">
+    <header class="yy-enter px-1">
+      <p class="yy-kicker">My kitchen</p>
+      <h1 class="yy-display mt-2 text-[32px] font-bold leading-none text-[var(--yy-ink)]">个人资料</h1>
     </header>
 
-    <article class="rounded-[28px] bg-white p-5 shadow-[0_16px_40px_rgba(87,64,46,0.06)]">
-      <p class="text-sm text-[var(--yy-muted)]">当前家庭</p>
-      <h2 class="mt-1 text-lg font-semibold text-[var(--yy-ink)]">{{ familyName }}</h2>
-      <p class="mt-2 text-sm text-[var(--yy-muted)]">
-        {{ currentFamily?.description ?? '只属于我们的两人食堂' }}
-      </p>
-      <p class="mt-3 text-xs tracking-[0.18em] text-[var(--yy-muted)]">
-        邀请码：{{ inviteCode || '暂未生成' }}
-      </p>
-    </article>
-
-    <article class="rounded-[28px] bg-white p-5 shadow-[0_16px_40px_rgba(87,64,46,0.06)]">
-      <p class="text-sm text-[var(--yy-muted)]">当前账号</p>
-      <h2 class="mt-1 text-lg font-semibold text-[var(--yy-ink)]">{{ currentUser?.nickname ?? '未登录' }}</h2>
-      <p class="mt-2 text-sm text-[var(--yy-muted)]">@{{ currentUser?.username ?? '-' }}</p>
-    </article>
-
-    <article class="rounded-[28px] bg-white p-5 shadow-[0_16px_40px_rgba(87,64,46,0.06)]">
-      <div class="flex items-center justify-between">
-        <p class="text-sm text-[var(--yy-muted)]">家庭成员</p>
-        <span class="text-sm text-[var(--yy-muted)]">{{ members.length }}/2</span>
+    <article
+      class="relative overflow-hidden rounded-[32px] bg-[var(--yy-ink)] p-6 text-white shadow-[0_24px_60px_rgba(48,37,31,0.24)]"
+    >
+      <p class="text-sm tracking-[0.24em] text-white/70">PROFILE</p>
+      <h2 class="mt-3 text-2xl font-semibold">{{ currentUser?.nickname ?? '未登录' }}</h2>
+      <p class="mt-2 text-sm text-white/80">@{{ currentUser?.username ?? '-' }}</p>
+      <div class="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">
+        <p class="text-white/65">注册时间</p>
+        <p class="mt-1 font-medium text-white">{{ formatDate(currentUser?.created_at) }}</p>
       </div>
-      <div class="mt-4 space-y-3">
-        <div
-          v-for="member in members"
-          :key="member.id"
-          class="flex items-center justify-between rounded-2xl bg-[var(--yy-cream)] px-4 py-3 text-sm"
-        >
-          <div>
-            <p class="font-medium text-[var(--yy-ink)]">{{ member.user.nickname }}</p>
-            <p class="mt-1 text-[var(--yy-muted)]">@{{ member.user.username }}</p>
-          </div>
-          <span class="rounded-full bg-white px-3 py-1 text-xs text-[var(--yy-muted)]">
-            {{ member.role === 'owner' ? '管理员' : '成员' }}
-          </span>
+    </article>
+
+    <article class="yy-card p-5">
+      <p class="text-sm text-[var(--yy-muted)]">资料编辑</p>
+      <div class="mt-4 space-y-4">
+        <div>
+          <label class="mb-2 block text-sm text-[var(--yy-muted)]">用户名</label>
+          <input
+            :value="currentUser?.username ?? ''"
+            type="text"
+            disabled
+            class="w-full rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3 text-sm text-[var(--yy-muted)] outline-none"
+          />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm text-[var(--yy-muted)]">昵称</label>
+          <input
+            v-model.trim="form.nickname"
+            type="text"
+            maxlength="32"
+            placeholder="请输入昵称"
+            class="w-full rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3 text-sm text-[var(--yy-ink)] outline-none"
+          />
         </div>
       </div>
-    </article>
 
-    <div class="space-y-3">
-      <div class="rounded-2xl bg-white px-4 py-4 text-sm text-[var(--yy-ink)] shadow-sm">个人资料</div>
-      <div class="rounded-2xl bg-white px-4 py-4 text-sm text-[var(--yy-ink)] shadow-sm">家庭信息</div>
       <button
         type="button"
-        class="w-full rounded-2xl bg-white px-4 py-4 text-left text-sm text-[var(--yy-ink)] shadow-sm"
-        @click="goToDishes"
+        class="mt-5 w-full rounded-2xl bg-[var(--yy-ink)] px-4 py-4 text-sm font-medium text-white"
+        :disabled="saving"
+        @click="submitProfile"
       >
-        菜品管理
+        保存资料
       </button>
-      <div class="rounded-2xl bg-white px-4 py-4 text-sm text-[var(--yy-ink)] shadow-sm">通知设置</div>
-    </div>
+    </article>
 
     <button
       type="button"
-      class="w-full rounded-2xl bg-[var(--yy-ink)] px-4 py-4 text-sm font-medium text-white"
+      class="w-full rounded-2xl bg-white px-4 py-4 text-sm font-medium text-[var(--yy-ink)] shadow-sm"
       @click="logout"
     >
       退出登录

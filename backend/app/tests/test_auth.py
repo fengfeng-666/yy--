@@ -94,3 +94,31 @@ async def test_login_with_wrong_password_returns_401(test_client: AsyncClient) -
 
     assert response.status_code == 401
     assert response.json()["message"] == "用户名或密码错误"
+
+
+@pytest.mark.asyncio
+async def test_update_profile(test_client: AsyncClient) -> None:
+    register_response = await test_client.post(
+        "/auth/register",
+        json={
+            "username": "chef03",
+            "nickname": "旧昵称",
+            "password": "secret123",
+        },
+    )
+    access_token = register_response.json()["data"]["tokens"]["access_token"]
+
+    update_response = await test_client.patch(
+        "/auth/me",
+        json={"nickname": "新昵称"},
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    assert update_response.status_code == 200
+    assert update_response.json()["data"]["nickname"] == "新昵称"
+
+    me_response = await test_client.get(
+        "/auth/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    assert me_response.status_code == 200
+    assert me_response.json()["data"]["nickname"] == "新昵称"
