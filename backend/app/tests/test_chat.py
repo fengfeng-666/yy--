@@ -3,11 +3,15 @@ from collections.abc import AsyncIterator
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.core.constants import ErrorCode
+from app.core.exceptions import AppException
 from app.db.base import Base
 from app.db.session import get_db_session
 from app.main import create_application
+from app.services import chat as chat_service
 
 
 @pytest_asyncio.fixture
@@ -224,3 +228,66 @@ async def test_chat_is_isolated_by_family(test_client: AsyncClient) -> None:
         headers=headers(second_token),
     )
     assert cross_family_read.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_mark_message_read_returns_app_exception_when_retry_still_hits_integrity_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeSession:
+        async def commit(self) -> None:
+            return None
+
+        async def rollback(self) -> None:
+            return None
+
+    async def fake_get_chat_message(
+        session: AsyncSession,
+        *,
+        family_id: int,
+        message_id: int,
+    ) -> object:
+        return object()
+
+    async def fake_get_chat_read_state(
+        session: AsyncSession,
+        *,
+        family_id: int,
+        user_id: int,
+    ) -> None:
+        return None
+
+    async def fake_create_chat_read_state(
+        session: AsyncSession,
+        *,
+        family_id: int,
+        user_id: int,
+        last_read_message_id: int,
+    ) -> None:
+        raise IntegrityError("insert into chat_read_states", None, Exception("duplicate key"))
+
+    async def fake_advance_chat_read_state(
+        session: AsyncSession,
+        *,
+        family_id: int,
+        user_id: int,
+        last_read_message_id: int,
+    ) -> None:
+        raise IntegrityError("update chat_read_states", None, Exception("still failing"))
+
+    monkeypatch.setattr(chat_service, "get_chat_message", fake_get_chat_message)
+    monkeypatch.setattr(chat_service, "get_chat_read_state", fake_get_chat_read_state)
+    monkeypatch.setattr(chat_service, "create_chat_read_state", fake_create_chat_read_state)
+    monkeypatch.setattr(chat_service, "advance_chat_read_state", fake_advance_chat_read_state)
+
+    with pytest.raises(AppException) as exc_info:
+        await chat_service.mark_message_read_for_user(
+            FakeSession(),
+            family_id=1,
+            user_id=2,
+            message_id=3,
+        )
+
+    assert exc_info.value.code == ErrorCode.INTERNAL_ERROR
+    assert exc_info.value.status_code == 500
+    assert exc_info.value.message == "标记消息已读失败，请稍后重试"

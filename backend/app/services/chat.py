@@ -113,16 +113,27 @@ async def mark_message_read_for_user(
                 last_read_message_id=message_id,
             )
         await session.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
         # 两个页面首次同时标记已读时，保留数据库中更大的游标。
         await session.rollback()
-        await advance_chat_read_state(
-            session,
-            family_id=family_id,
-            user_id=user_id,
-            last_read_message_id=message_id,
-        )
-        await session.commit()
+        try:
+            await advance_chat_read_state(
+                session,
+                family_id=family_id,
+                user_id=user_id,
+                last_read_message_id=message_id,
+            )
+            await session.commit()
+        except IntegrityError as retry_exc:
+            await session.rollback()
+            raise AppException(
+                code=ErrorCode.INTERNAL_ERROR,
+                message="标记消息已读失败，请稍后重试",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            ) from retry_exc
+        except Exception:
+            await session.rollback()
+            raise
 
     return await get_unread_count_for_user(
         session,
