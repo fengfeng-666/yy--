@@ -148,21 +148,21 @@ async function submitOrder() {
             </option>
           </select>
 
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label class="block">
+          <div class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+            <label class="block min-w-0">
               <span class="mb-1.5 block px-1 text-xs text-[var(--yy-muted)]">日期</span>
               <input
                 v-model="form.plannedDate"
                 type="date"
-                class="w-full min-w-0 rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3 text-sm outline-none"
+                class="mobile-date-time-input rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3 text-sm outline-none"
               />
             </label>
-            <label class="block">
+            <label class="block min-w-0">
               <span class="mb-1.5 block px-1 text-xs text-[var(--yy-muted)]">时间</span>
               <input
                 v-model="form.plannedTime"
                 type="time"
-                class="w-full min-w-0 rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3 text-sm outline-none"
+                class="mobile-date-time-input rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3 text-sm outline-none"
               />
             </label>
           </div>
@@ -249,3 +249,14 @@ async function submitOrder() {
     </div>
   </section>
 </template>
+
+<style scoped>
+.mobile-date-time-input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+}
+</style>
