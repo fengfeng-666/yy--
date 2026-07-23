@@ -34,10 +34,6 @@ export async function sendAiChatMessage(payload: {
     formData.append('image', payload.imageFile)
   }
 
-  const { data } = await http.post<ApiResponse<AiChatTurnResponse>>('/ai-chat/messages', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  })
+  const { data } = await http.post<ApiResponse<AiChatTurnResponse>>('/ai-chat/messages', formData)
   return data.data
 }
