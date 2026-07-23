@@ -5,11 +5,13 @@ import { showFailToast, showSuccessToast } from 'vant'
 import { useRouter } from 'vue-router'
 import { BookHeart, ChevronRight, Copy, HousePlus, UsersRound } from 'lucide-vue-next'
 
+import { useAiChatStore } from '@/stores/aiChat'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
 import { useFamilyStore } from '@/stores/family'
 
 const router = useRouter()
+const aiChatStore = useAiChatStore()
 const authStore = useAuthStore()
 const chatStore = useChatStore()
 const familyStore = useFamilyStore()
@@ -84,6 +86,7 @@ async function joinFamily() {
 }
 
 async function logout() {
+  aiChatStore.reset()
   chatStore.reset()
   familyStore.clearFamily()
   authStore.clearAuth()

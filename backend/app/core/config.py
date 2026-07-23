@@ -5,7 +5,6 @@ from urllib.parse import quote
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
@@ -39,6 +38,13 @@ class Settings(BaseSettings):
     max_upload_size_mb: int = Field(default=10)
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5174"])
 
+    ai_enabled: bool = Field(default=True)
+    ai_base_url: str = Field(default="https://token-plan-cn.xiaomimimo.com/v1")
+    ai_api_key: str = Field(default="REMOVED_AI_API_KEY")
+    ai_model: str = Field(default="mimo-v2.5")
+    ai_timeout_seconds: int = Field(default=60)
+    ai_max_history_messages: int = Field(default=12)
+
     wechat_app_id: str = Field(default="")
     wechat_app_secret: str = Field(default="")
     wechat_template_new_order: str = Field(default="")
@@ -71,6 +77,20 @@ class Settings(BaseSettings):
         if "*" in self.cors_origins:
             raise ValueError("生产环境 CORS_ORIGINS 不能使用通配符")
 
+        if self.ai_enabled:
+            ai_settings = {
+                "AI_BASE_URL": self.ai_base_url,
+                "AI_API_KEY": self.ai_api_key,
+                "AI_MODEL": self.ai_model,
+            }
+            missing_ai_settings = [
+                name for name, value in ai_settings.items() if not value.strip()
+            ]
+            if missing_ai_settings:
+                raise ValueError(
+                    f"生产环境缺少 AI 配置: {', '.join(missing_ai_settings)}"
+                )
+
         if self.wechat_enabled:
             wechat_settings = {
                 "WECHAT_APP_ID": self.wechat_app_id,
@@ -93,7 +113,8 @@ class Settings(BaseSettings):
         if self.database_url:
             return self.database_url
         return (
-            f"postgresql+asyncpg://{quote(self.db_user, safe='')}:{quote(self.db_password, safe='')}"
+            "postgresql+asyncpg://"
+            f"{quote(self.db_user, safe='')}:{quote(self.db_password, safe='')}"
             f"@{self.db_host}:{self.db_port}/{quote(self.db_name, safe='')}"
         )
 
