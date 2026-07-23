@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { showFailToast, showSuccessToast } from 'vant'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import { useFamilyStore } from '@/stores/family'
 
 const router = useRouter()
+const route = useRoute()
 const familyStore = useFamilyStore()
 
-const mode = ref<'create' | 'join'>('create')
+const mode = ref<'create' | 'join'>(route.query.mode === 'join' ? 'join' : 'create')
 const submitting = ref(false)
 const createForm = reactive({
   name: '',
@@ -56,6 +57,10 @@ async function submit() {
   } finally {
     submitting.value = false
   }
+}
+
+async function skipForNow() {
+  await router.replace('/home')
 }
 </script>
 
@@ -121,6 +126,14 @@ async function submit() {
           {{ submitting ? '提交中...' : mode === 'create' ? '创建并进入' : '加入并进入' }}
         </button>
       </form>
+
+      <button
+        type="button"
+        class="mt-4 w-full py-2 text-sm text-[var(--yy-muted)]"
+        @click="skipForNow"
+      >
+        稍后再说，先进入应用
+      </button>
     </div>
   </section>
 </template>

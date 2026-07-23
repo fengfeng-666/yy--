@@ -17,12 +17,12 @@ onLoad(async () => {
 async function routeAuthenticatedUser() {
   try {
     session.family = await fetchCurrentFamily()
-    uni.reLaunch({ url: '/pages/home/index' })
   } catch (error) {
     if (error instanceof ApiRequestError && error.statusCode === 401) return
     if (error instanceof ApiRequestError && error.statusCode !== 404) throw error
-    uni.reLaunch({ url: '/pages/family/index' })
+    session.family = null
   }
+  uni.reLaunch({ url: '/pages/home/index' })
 }
 
 async function login() {

@@ -9,6 +9,7 @@ const DishesPage = () => import('@/pages/DishesPage.vue')
 const FamilyOnboardingPage = () => import('@/pages/FamilyOnboardingPage.vue')
 const HomePage = () => import('@/pages/HomePage.vue')
 const LoginPage = () => import('@/pages/LoginPage.vue')
+const MessagesPage = () => import('@/pages/MessagesPage.vue')
 const OrderCreatePage = () => import('@/pages/OrderCreatePage.vue')
 const OrderDetailPage = () => import('@/pages/OrderDetailPage.vue')
 const OrdersPage = () => import('@/pages/OrdersPage.vue')
@@ -31,7 +32,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     component: MainLayout,
-    meta: { requiresAuth: true, requiresFamily: true },
+    meta: { requiresAuth: true },
     children: [
       {
         path: '',
@@ -53,14 +54,25 @@ const routes: RouteRecordRaw[] = [
         component: OrdersPage,
       },
       {
-        path: '/plans',
-        name: 'plans',
+        path: '/journal',
+        name: 'journal',
         component: PlansPage,
+      },
+      {
+        path: '/plans',
+        redirect: '/journal',
+      },
+      {
+        path: '/messages',
+        name: 'messages',
+        component: MessagesPage,
+        meta: { requiresFamily: false },
       },
       {
         path: '/profile',
         name: 'profile',
         component: ProfilePage,
+        meta: { requiresFamily: false },
       },
     ],
   },
@@ -109,7 +121,7 @@ router.beforeEach(async (to) => {
     if (!familyStore.initialized) {
       await familyStore.loadCurrentFamily()
     }
-    return { name: familyStore.hasFamily ? 'home' : 'family-onboarding' }
+    return { name: 'home' }
   }
 
   if (isAuthenticated.value && !familyStore.initialized) {

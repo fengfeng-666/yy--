@@ -20,12 +20,13 @@ import {
 
 import { useAppStore } from '@/stores/app'
 import { useFamilyStore } from '@/stores/family'
+import NoFamilyState from '@/components/NoFamilyState.vue'
 
 const router = useRouter()
 const appStore = useAppStore()
 const familyStore = useFamilyStore()
 const { userNickname, familyName, homeSummary, homeLoading } = storeToRefs(appStore)
-const { members } = storeToRefs(familyStore)
+const { hasFamily, members } = storeToRefs(familyStore)
 
 const todayOrder = computed(() => homeSummary.value?.today_order ?? null)
 const recentHistory = computed(() => homeSummary.value?.recent_history ?? [])
@@ -43,6 +44,9 @@ const greeting = computed(() => {
 })
 
 onMounted(async () => {
+  if (!hasFamily.value) {
+    return
+  }
   try {
     await appStore.loadHomeSummary()
   } catch (error) {
@@ -63,7 +67,7 @@ function goToCreateOrder() {
 }
 
 function goToHistory() {
-  router.push('/plans')
+  router.push('/journal')
 }
 
 function goToDishes() {
@@ -92,6 +96,13 @@ function goToOrderDetail(orderId: number) {
       </div>
     </header>
 
+    <NoFamilyState
+      v-if="!hasFamily"
+      title="先从一张家庭餐桌开始"
+      description="账号已经注册成功。加入家庭后，就能共享菜单、发起点菜和记录每一顿饭。"
+    />
+
+    <template v-else>
     <article
       class="yy-enter yy-enter-delay-1 relative isolate overflow-hidden rounded-[34px] bg-[var(--yy-ink)] p-6 text-white shadow-[0_28px_65px_rgba(48,37,31,0.26)]"
     >
@@ -315,5 +326,6 @@ function goToOrderDetail(orderId: number) {
         </div>
       </div>
     </section>
+    </template>
   </section>
 </template>

@@ -6,24 +6,34 @@ import { useRouter } from 'vue-router'
 import { CalendarClock, CheckCircle2, ChevronRight, Clock3, Plus, Utensils } from 'lucide-vue-next'
 
 import { useAuthStore } from '@/stores/auth'
+import { useFamilyStore } from '@/stores/family'
 import { useOrderStore } from '@/stores/order'
 import type { MealOrder, MealOrderRole, MealOrderStatus } from '@/types/order'
+import NoFamilyState from '@/components/NoFamilyState.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const familyStore = useFamilyStore()
 const orderStore = useOrderStore()
 
 const { currentUser } = storeToRefs(authStore)
 const { orders, loading } = storeToRefs(orderStore)
+const { hasFamily } = storeToRefs(familyStore)
 
 const activeRole = ref<MealOrderRole>('to_me')
 const activeStatus = ref<MealOrderStatus>('pending')
 
 onMounted(async () => {
+  if (!hasFamily.value) {
+    return
+  }
   await loadOrders()
 })
 
 watch([activeRole, activeStatus], async () => {
+  if (!hasFamily.value) {
+    return
+  }
   await loadOrders()
 })
 
@@ -82,6 +92,7 @@ function canAccept(order: MealOrder) {
         <p class="mt-3 text-sm text-[var(--yy-muted)]">每一份点菜，都是一句具体的“想和你吃饭”。</p>
       </div>
       <button
+        v-if="hasFamily"
         type="button"
         class="yy-primary-button flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--yy-ink)] text-white shadow-[0_12px_25px_rgba(48,37,31,0.2)]"
         aria-label="发起点菜"
@@ -91,6 +102,13 @@ function canAccept(order: MealOrder) {
       </button>
     </header>
 
+    <NoFamilyState
+      v-if="!hasFamily"
+      title="加入家庭后才能点菜"
+      description="加入家人的餐桌后，你们就能互相点菜、接单并记录用餐安排。"
+    />
+
+    <template v-else>
     <div class="yy-card yy-enter yy-enter-delay-1 grid grid-cols-2 gap-1 p-1.5">
       <button
         type="button"
@@ -217,5 +235,6 @@ function canAccept(order: MealOrder) {
         </div>
       </article>
     </div>
+    </template>
   </section>
 </template>

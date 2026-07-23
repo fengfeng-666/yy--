@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 
 import { createFamily, joinFamily } from '@/api'
 import { session } from '@/stores/session'
@@ -8,6 +9,12 @@ import { showError } from '@/utils/request'
 const mode = ref<'create' | 'join'>('create')
 const loading = ref(false)
 const form = reactive({ name: '', description: '', inviteCode: '' })
+
+onLoad((options) => {
+  if (options?.mode === 'join') {
+    mode.value = 'join'
+  }
+})
 
 async function submit() {
   loading.value = true
@@ -23,6 +30,10 @@ async function submit() {
   } finally {
     loading.value = false
   }
+}
+
+function skipForNow() {
+  uni.reLaunch({ url: '/pages/home/index' })
 }
 </script>
 
@@ -51,6 +62,7 @@ async function submit() {
       <button class="yy-primary submit" :loading="loading" :disabled="loading" @tap="submit">
         {{ mode === 'create' ? '创建并进入' : '加入并进入' }}
       </button>
+      <button class="skip" @tap="skipForNow">稍后再说，先进入应用</button>
     </view>
   </view>
 </template>
@@ -67,4 +79,5 @@ async function submit() {
 .textarea { height: 180rpx; padding-top: 24rpx; }
 .invite { letter-spacing: 6rpx; text-transform: uppercase; }
 .submit { margin-top: 44rpx; }
+.skip { height: 72rpx; margin-top: 16rpx; color: #84746a; background: transparent; font-size: 23rpx; line-height: 72rpx; }
 </style>

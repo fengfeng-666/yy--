@@ -66,7 +66,7 @@ async function submitForm() {
     }
 
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
-    const fallback = familyStore.hasFamily ? '/home' : '/family/onboarding'
+    const fallback = '/home'
     await router.replace(redirect || fallback)
   } catch (error) {
     const message =

@@ -5,12 +5,19 @@ import { showFailToast } from 'vant'
 import { useRouter } from 'vue-router'
 
 import { useOrderStore } from '@/stores/order'
+import { useFamilyStore } from '@/stores/family'
+import NoFamilyState from '@/components/NoFamilyState.vue'
 
 const router = useRouter()
 const orderStore = useOrderStore()
+const familyStore = useFamilyStore()
 const { historyOrders, historyLoading } = storeToRefs(orderStore)
+const { hasFamily } = storeToRefs(familyStore)
 
 onMounted(async () => {
+  if (!hasFamily.value) {
+    return
+  }
   try {
     await orderStore.loadDiningHistory()
   } catch (error) {
@@ -34,8 +41,14 @@ async function goToDetail(orderId: number) {
       <h1 class="yy-display mt-2 text-[32px] font-bold leading-tight text-[var(--yy-ink)]">回顾每一次<br />一起吃饭</h1>
     </header>
 
+    <NoFamilyState
+      v-if="!hasFamily"
+      title="加入家庭后开始记录食记"
+      description="一起完成的每顿饭都会留在这里。先加入或创建家庭，再慢慢积累你们的用餐回忆。"
+    />
+
     <div
-      v-if="historyLoading"
+      v-else-if="historyLoading"
       class="yy-card p-8 text-center text-sm text-[var(--yy-muted)]"
     >
       正在加载用餐历史...

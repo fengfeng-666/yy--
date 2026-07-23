@@ -2,10 +2,12 @@
 import { ref } from 'vue'
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 
-import { acceptOrder, fetchOrders } from '@/api'
+import { acceptOrder, fetchCurrentFamily, fetchOrders } from '@/api'
+import NoFamilyState from '@/components/NoFamilyState.vue'
 import YyTabBar from '@/components/YyTabBar.vue'
+import { session } from '@/stores/session'
 import type { MealOrder } from '@/types/api'
-import { showError } from '@/utils/request'
+import { ApiRequestError, showError } from '@/utils/request'
 import { requestSubscriptions } from '@/utils/subscriptions'
 
 const role = ref<'to_me' | 'my_requested'>('to_me')
@@ -20,6 +22,16 @@ function orderText(order: MealOrder) {
 async function load() {
   loading.value = true
   try {
+    try {
+      session.family = await fetchCurrentFamily()
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.statusCode === 404) {
+        session.family = null
+        orders.value = []
+        return
+      }
+      throw error
+    }
     orders.value = await fetchOrders(role.value, status.value)
   } catch (error) {
     showError(error, '点菜列表加载失败')
@@ -64,6 +76,13 @@ onPullDownRefresh(load)
 
 <template>
   <view class="yy-page orders-page">
+    <NoFamilyState
+      v-if="!session.family"
+      title="加入家庭后才能点菜"
+      description="加入家人的餐桌后，你们就能互相点菜、接单并记录用餐安排。"
+    />
+
+    <template v-else>
     <view class="role-tabs yy-card">
       <button :class="{ active: role === 'to_me' }" @tap="changeRole('to_me')">点给我的</button>
       <button :class="{ active: role === 'my_requested' }" @tap="changeRole('my_requested')">我发起的</button>
@@ -91,6 +110,7 @@ onPullDownRefresh(load)
     <view v-else class="loading yy-muted">正在加载…</view>
 
     <button class="floating" @tap="goCreateOrder">＋</button>
+    </template>
     <YyTabBar active="orders" />
   </view>
 </template>

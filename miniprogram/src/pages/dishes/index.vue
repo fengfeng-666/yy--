@@ -2,10 +2,12 @@
 import { computed, ref } from 'vue'
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 
-import { fetchDishes } from '@/api'
+import { fetchCurrentFamily, fetchDishes } from '@/api'
+import NoFamilyState from '@/components/NoFamilyState.vue'
 import YyTabBar from '@/components/YyTabBar.vue'
+import { session } from '@/stores/session'
 import type { DishItem } from '@/types/api'
-import { resolveAssetUrl, showError } from '@/utils/request'
+import { ApiRequestError, resolveAssetUrl, showError } from '@/utils/request'
 
 const dishes = ref<DishItem[]>([])
 const keyword = ref('')
@@ -18,6 +20,16 @@ const filtered = computed(() => {
 
 async function load() {
   try {
+    try {
+      session.family = await fetchCurrentFamily()
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.statusCode === 404) {
+        session.family = null
+        dishes.value = []
+        return
+      }
+      throw error
+    }
     dishes.value = await fetchDishes()
   } catch (error) {
     showError(error, '菜单加载失败')
@@ -39,6 +51,14 @@ onPullDownRefresh(load)
     <text class="yy-kicker">Family Menu</text>
     <text class="yy-title">今天想吃什么</text>
     <text class="subtitle yy-muted">把你们的拿手菜，慢慢攒成一本家庭菜单。</text>
+
+    <NoFamilyState
+      v-if="!session.family"
+      title="加入家庭后查看共享菜单"
+      description="家庭菜单由成员共同维护。加入或创建家庭后，就可以开始点菜。"
+    />
+
+    <template v-else>
 
     <view class="search yy-card">
       <text>⌕</text>
@@ -68,6 +88,7 @@ onPullDownRefresh(load)
       </view>
     </view>
     <view v-else class="empty yy-card">{{ keyword ? '没有找到这道菜' : '家庭菜单还是空的' }}</view>
+    </template>
     <YyTabBar active="dishes" />
   </view>
 </template>

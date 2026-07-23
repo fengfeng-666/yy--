@@ -3,10 +3,11 @@ import { computed, ref } from 'vue'
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 
 import { fetchCurrentFamily, fetchHomeSummary } from '@/api'
+import NoFamilyState from '@/components/NoFamilyState.vue'
 import YyTabBar from '@/components/YyTabBar.vue'
 import { session } from '@/stores/session'
 import type { HomeSummary, MealOrder } from '@/types/api'
-import { showError } from '@/utils/request'
+import { ApiRequestError, showError } from '@/utils/request'
 import { requestSubscriptions } from '@/utils/subscriptions'
 
 const loading = ref(false)
@@ -20,9 +21,17 @@ function orderText(order: MealOrder) {
 async function load() {
   loading.value = true
   try {
-    const [family, home] = await Promise.all([fetchCurrentFamily(), fetchHomeSummary()])
-    session.family = family
-    summary.value = home
+    try {
+      session.family = await fetchCurrentFamily()
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.statusCode === 404) {
+        session.family = null
+        summary.value = null
+        return
+      }
+      throw error
+    }
+    summary.value = await fetchHomeSummary()
   } catch (error) {
     showError(error, '首页加载失败')
   } finally {
@@ -62,6 +71,14 @@ onPullDownRefresh(load)
       <button class="bell" @tap="enableReminder">🔔</button>
     </view>
 
+    <NoFamilyState
+      v-if="!session.family"
+      title="账号注册成功"
+      description="加入家庭后，就能共享菜单、发起点菜和记录每一顿饭。"
+    />
+
+    <template v-else>
+
     <view class="hero">
       <text class="hero-label">TODAY'S TABLE</text>
       <text class="hero-title">{{ todayOrder ? orderText(todayOrder) : '今天，想吃点什么？' }}</text>
@@ -92,6 +109,7 @@ onPullDownRefresh(load)
     </view>
 
     <view v-if="loading" class="loading yy-muted">正在准备今天的餐桌…</view>
+    </template>
     <YyTabBar active="home" />
   </view>
 </template>

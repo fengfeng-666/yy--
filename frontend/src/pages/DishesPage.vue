@@ -6,12 +6,16 @@ import { useRouter } from 'vue-router'
 import { ChevronRight, ImagePlus, Pencil, Plus, Search, Trash2, Utensils } from 'lucide-vue-next'
 
 import { useDishStore } from '@/stores/dish'
+import { useFamilyStore } from '@/stores/family'
 import type { DishItem } from '@/types/dish'
 import { resolveAssetUrl } from '@/utils/assets'
+import NoFamilyState from '@/components/NoFamilyState.vue'
 
 const router = useRouter()
 const dishStore = useDishStore()
+const familyStore = useFamilyStore()
 const { dishes, loading } = storeToRefs(dishStore)
+const { hasFamily } = storeToRefs(familyStore)
 
 const isDishPopupVisible = ref(false)
 const isSubmittingDish = ref(false)
@@ -48,6 +52,9 @@ function resetDishForm() {
 }
 
 onMounted(async () => {
+  if (!hasFamily.value) {
+    return
+  }
   try {
     await dishStore.initialize()
   } catch (error) {
@@ -166,6 +173,7 @@ async function openDishDetail(dishId: number) {
         <p class="mt-3 text-sm text-[var(--yy-muted)]">把你们的拿手菜，慢慢攒成一本家庭菜单。</p>
       </div>
       <button
+        v-if="hasFamily"
         type="button"
         class="yy-primary-button flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--yy-ink)] text-white shadow-[0_12px_25px_rgba(48,37,31,0.2)]"
         aria-label="新增菜品"
@@ -175,6 +183,13 @@ async function openDishDetail(dishId: number) {
       </button>
     </header>
 
+    <NoFamilyState
+      v-if="!hasFamily"
+      title="加入家庭后查看共享菜单"
+      description="家庭菜单由成员共同维护。加入或创建家庭后，就可以开始添加拿手菜。"
+    />
+
+    <template v-else>
     <div class="yy-card yy-enter yy-enter-delay-1 flex items-center gap-3 px-4 py-3.5">
       <Search class="h-5 w-5 shrink-0 text-[var(--yy-muted)]" aria-hidden="true" />
       <input
@@ -376,5 +391,6 @@ async function openDishDetail(dishId: number) {
         </button>
       </div>
     </van-popup>
+    </template>
   </section>
 </template>
