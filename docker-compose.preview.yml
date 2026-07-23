@@ -1,0 +1,9 @@
+services:
+  # 备案前仅通过服务器 IP 预览。正式上线时不要加载此覆盖文件。
+  caddy:
+    profiles:
+      - https
+
+  frontend:
+    ports:
+      - "80:80"

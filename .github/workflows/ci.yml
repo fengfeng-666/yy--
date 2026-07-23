@@ -36,3 +36,22 @@ jobs:
           cache: pip
       - run: pip install -e '.[dev]'
       - run: pytest -q
+
+  miniprogram:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: miniprogram
+    env:
+      VITE_API_BASE_URL: https://api.example.test/api/v1
+      VITE_WECHAT_TEMPLATE_NEW_ORDER: ci-template-new-order
+      VITE_WECHAT_TEMPLATE_ORDER_ACCEPTED: ci-template-order-accepted
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: miniprogram/package-lock.json
+      - run: npm ci
+      - run: npm run verify

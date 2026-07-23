@@ -2,8 +2,10 @@ FROM node:22-alpine AS build
 
 WORKDIR /app
 
+ARG NPM_REGISTRY=https://mirrors.cloud.tencent.com/npm/
+
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm config set registry "${NPM_REGISTRY}" && npm ci
 
 COPY . .
 

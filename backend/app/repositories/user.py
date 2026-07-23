@@ -14,17 +14,26 @@ async def get_user_by_username(session: AsyncSession, username: str) -> User | N
     return result.scalar_one_or_none()
 
 
+async def get_user_by_wechat_openid(session: AsyncSession, openid: str) -> User | None:
+    result = await session.execute(select(User).where(User.wechat_openid == openid))
+    return result.scalar_one_or_none()
+
+
 async def create_user(
     session: AsyncSession,
     *,
     username: str,
     nickname: str,
     password_hash: str,
+    wechat_openid: str | None = None,
+    wechat_unionid: str | None = None,
 ) -> User:
     user = User(
         username=username,
         nickname=nickname,
         password_hash=password_hash,
+        wechat_openid=wechat_openid,
+        wechat_unionid=wechat_unionid,
     )
     session.add(user)
     await session.commit()

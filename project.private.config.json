@@ -1,0 +1,14 @@
+{
+  "libVersion": "3.17.0",
+  "projectname": "yy%E7%A7%81%E5%8E%A8",
+  "setting": {
+    "urlCheck": true,
+    "coverView": true,
+    "lazyloadPlaceholderEnable": false,
+    "skylineRenderEnable": false,
+    "preloadBackgroundData": false,
+    "autoAudits": false,
+    "showShadowRootInWxmlPanel": true,
+    "compileHotReLoad": true
+  }
+}

@@ -1,22 +1,23 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 
 from app.api.deps import DbSession, get_current_family, get_current_user
 from app.models.family import Family
+from app.models.notification import NotificationEventType
 from app.models.user import User
 from app.repositories.order import OrderRole
 from app.schemas.common import ApiResponse, success_response
 from app.schemas.order import CreateMealOrderRequest, CreateMealReviewRequest, MealOrderProfile
+from app.services.notification import dispatch_notification, enqueue_order_notification
 from app.services.order import (
     accept_order_for_family,
     create_order_for_family,
     list_dining_history_for_family,
     list_orders_for_family,
-    review_order_for_family,
     require_meal_order,
+    review_order_for_family,
 )
-
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -42,6 +43,7 @@ async def get_orders(
 @router.post("", response_model=ApiResponse[MealOrderProfile], summary="创建点菜")
 async def create_order(
     payload: CreateMealOrderRequest,
+    background_tasks: BackgroundTasks,
     current_user: Annotated[User, Depends(get_current_user)],
     current_family: Annotated[Family, Depends(get_current_family)],
     session: DbSession,
@@ -52,6 +54,13 @@ async def create_order(
         current_user=current_user,
         payload=payload,
     )
+    notification_id = await enqueue_order_notification(
+        session,
+        order=order,
+        event_type=NotificationEventType.NEW_ORDER,
+    )
+    if notification_id is not None:
+        background_tasks.add_task(dispatch_notification, notification_id)
     return success_response(data=MealOrderProfile.model_validate(order), message="点菜创建成功")
 
 
@@ -77,6 +86,7 @@ async def get_order_detail(
 @router.post("/{order_id}/accept", response_model=ApiResponse[MealOrderProfile], summary="接受点菜")
 async def accept_order(
     order_id: int,
+    background_tasks: BackgroundTasks,
     current_user: Annotated[User, Depends(get_current_user)],
     current_family: Annotated[Family, Depends(get_current_family)],
     session: DbSession,
@@ -87,6 +97,13 @@ async def accept_order(
         order_id=order_id,
         current_user=current_user,
     )
+    notification_id = await enqueue_order_notification(
+        session,
+        order=order,
+        event_type=NotificationEventType.ORDER_ACCEPTED,
+    )
+    if notification_id is not None:
+        background_tasks.add_task(dispatch_notification, notification_id)
     return success_response(data=MealOrderProfile.model_validate(order), message="点菜已接受")
 
 

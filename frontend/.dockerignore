@@ -1,7 +1,5 @@
-.env*
-!.env.example
-!.env.production.example
-dist
 node_modules
+dist
+.env
+.env.*
 npm-debug.log*
-vite.config.ts.timestamp-*.mjs

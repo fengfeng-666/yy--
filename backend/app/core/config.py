@@ -39,6 +39,13 @@ class Settings(BaseSettings):
     max_upload_size_mb: int = Field(default=10)
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5174"])
 
+    wechat_app_id: str = Field(default="")
+    wechat_app_secret: str = Field(default="")
+    wechat_template_new_order: str = Field(default="")
+    wechat_template_order_accepted: str = Field(default="")
+    wechat_enabled: bool = Field(default=False)
+    wechat_api_base_url: str = Field(default="https://api.weixin.qq.com")
+
     @model_validator(mode="after")
     def validate_production_settings(self) -> "Settings":
         if self.app_env.lower() not in {"production", "prod"}:
@@ -63,6 +70,21 @@ class Settings(BaseSettings):
 
         if "*" in self.cors_origins:
             raise ValueError("生产环境 CORS_ORIGINS 不能使用通配符")
+
+        if self.wechat_enabled:
+            wechat_settings = {
+                "WECHAT_APP_ID": self.wechat_app_id,
+                "WECHAT_APP_SECRET": self.wechat_app_secret,
+                "WECHAT_TEMPLATE_NEW_ORDER": self.wechat_template_new_order,
+                "WECHAT_TEMPLATE_ORDER_ACCEPTED": self.wechat_template_order_accepted,
+            }
+            missing_wechat_settings = [
+                name for name, value in wechat_settings.items() if not value.strip()
+            ]
+            if missing_wechat_settings:
+                raise ValueError(
+                    f"生产环境缺少微信小程序配置: {', '.join(missing_wechat_settings)}"
+                )
 
         return self
 

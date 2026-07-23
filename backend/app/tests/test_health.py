@@ -58,6 +58,11 @@ def test_settings_accept_secure_production_configuration() -> None:
         db_password="a-strong-database-password",
         jwt_secret_key="a" * 64,
         cors_origins=[],
+        wechat_enabled=True,
+        wechat_app_id="wx-test-app-id",
+        wechat_app_secret="test-app-secret",
+        wechat_template_new_order="test-new-order-template",
+        wechat_template_order_accepted="test-order-accepted-template",
     )
 
     assert settings.app_env == "production"
@@ -86,8 +91,40 @@ def test_settings_reject_insecure_production_configuration(
         "db_password": "a-strong-database-password",
         "jwt_secret_key": "a" * 64,
         "cors_origins": [],
+        "wechat_enabled": True,
+        "wechat_app_id": "wx-test-app-id",
+        "wechat_app_secret": "test-app-secret",
+        "wechat_template_new_order": "test-new-order-template",
+        "wechat_template_order_accepted": "test-order-accepted-template",
     }
     production_settings.update(overrides)
 
     with pytest.raises(ValidationError, match=message):
         Settings(**production_settings)
+
+
+def test_settings_reject_missing_wechat_production_configuration() -> None:
+    with pytest.raises(ValidationError, match="WECHAT_APP_ID"):
+        Settings(
+            _env_file=None,
+            app_env="production",
+            debug=False,
+            db_password="a-strong-database-password",
+            jwt_secret_key="a" * 64,
+            cors_origins=[],
+            wechat_enabled=True,
+        )
+
+
+def test_settings_allow_website_only_production_configuration() -> None:
+    settings = Settings(
+        _env_file=None,
+        app_env="production",
+        debug=False,
+        db_password="a-strong-database-password",
+        jwt_secret_key="a" * 64,
+        cors_origins=[],
+        wechat_enabled=False,
+    )
+
+    assert settings.wechat_enabled is False

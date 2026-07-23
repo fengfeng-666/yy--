@@ -2,6 +2,7 @@ alembic<2.0.0,>=1.16.4
 asyncpg<1.0.0,>=0.30.0
 fastapi<1.0.0,>=0.116.1
 greenlet<4.0.0,>=3.2.3
+httpx<1.0.0,>=0.28.1
 PyJWT<3.0.0,>=2.10.1
 pydantic-settings<3.0.0,>=2.10.1
 python-multipart<1.0.0,>=0.0.20
@@ -11,7 +12,6 @@ uvicorn[standard]<1.0.0,>=0.35.0
 
 [dev]
 aiosqlite<1.0.0,>=0.21.0
-httpx<1.0.0,>=0.28.1
 pytest<9.0.0,>=8.4.1
 pytest-asyncio<2.0.0,>=1.1.0
 ruff<1.0.0,>=0.12.4

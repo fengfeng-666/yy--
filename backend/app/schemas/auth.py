@@ -40,6 +40,26 @@ class LoginRequest(BaseModel):
         return normalized
 
 
+class WechatLoginRequest(BaseModel):
+    code: str = Field(min_length=1, max_length=256)
+    nickname: str | None = Field(default=None, max_length=32)
+
+    @field_validator("code")
+    @classmethod
+    def normalize_code(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("微信登录凭证不能为空")
+        return normalized
+
+    @field_validator("nickname")
+    @classmethod
+    def normalize_wechat_nickname(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None
+
+
 class UpdateProfileRequest(BaseModel):
     nickname: str = Field(min_length=1, max_length=32)
 

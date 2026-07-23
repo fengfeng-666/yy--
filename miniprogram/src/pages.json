@@ -1,0 +1,39 @@
+{
+  "pages": [
+    {
+      "path": "pages/login/index",
+      "style": { "navigationStyle": "custom" }
+    },
+    {
+      "path": "pages/family/index",
+      "style": { "navigationBarTitleText": "家庭空间" }
+    },
+    {
+      "path": "pages/home/index",
+      "style": { "navigationStyle": "custom", "enablePullDownRefresh": true }
+    },
+    {
+      "path": "pages/dishes/index",
+      "style": { "navigationBarTitleText": "家庭菜单", "enablePullDownRefresh": true }
+    },
+    {
+      "path": "pages/orders/index",
+      "style": { "navigationBarTitleText": "点菜", "enablePullDownRefresh": true }
+    },
+    {
+      "path": "pages/order-create/index",
+      "style": { "navigationBarTitleText": "发起点菜" }
+    },
+    {
+      "path": "pages/profile/index",
+      "style": { "navigationBarTitleText": "我的" }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "YY私厨",
+    "navigationBarBackgroundColor": "#f8f3eb",
+    "backgroundColor": "#f8f3eb",
+    "backgroundTextStyle": "dark"
+  }
+}

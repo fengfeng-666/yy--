@@ -1,0 +1,22 @@
+{
+  "name": "YY私厨",
+  "appid": "wx159752e659deda15",
+  "description": "两个人的家庭点菜与用餐记录",
+  "versionName": "0.1.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "mp-weixin": {
+    "appid": "wx159752e659deda15",
+    "setting": {
+      "urlCheck": true,
+      "minified": true,
+      "es6": true
+    },
+    "usingComponents": true,
+    "permission": {}
+  },
+  "uniStatistics": {
+    "enable": false
+  },
+  "vueVersion": "3"
+}

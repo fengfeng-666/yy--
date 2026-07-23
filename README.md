@@ -1,6 +1,6 @@
 # YY私厨
 
-当前仓库包含 `frontend/` 与 `backend/` 两部分，已完成基础工程初始化。目录如下：
+当前仓库包含网站端、微信小程序端和 FastAPI 后端：
 
 ```text
 F:\my_project\yy私厨
@@ -18,6 +18,11 @@ F:\my_project\yy私厨
 │   ├── README.md
 │   ├── package.json
 │   └── vite.config.ts
+├── miniprogram
+│   ├── src
+│   ├── tests
+│   ├── README.md
+│   └── package.json
 ├── docker-compose.yml
 └── YY私厨_详细设计方案.md
 ```
@@ -25,6 +30,7 @@ F:\my_project\yy私厨
 ## 当前完成内容
 
 - 初始化 Vue 3 + TypeScript 前端工程
+- 新增 uni-app + Vue 3 + TypeScript 微信小程序，支持微信登录与订阅消息授权
 - 初始化 FastAPI 项目结构
 - 配置基础环境变量
 - 配置 PostgreSQL 异步连接
@@ -32,6 +38,7 @@ F:\my_project\yy私厨
 - 配置统一响应和异常处理
 - 配置请求日志和请求 ID
 - 提供健康检查接口
+- 增加微信 OpenID、订阅额度和通知出站记录的数据迁移
 
 ## 快速启动
 
