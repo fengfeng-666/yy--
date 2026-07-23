@@ -148,17 +148,23 @@ async function submitOrder() {
             </option>
           </select>
 
-          <div class="grid grid-cols-2 gap-3">
-            <input
-              v-model="form.plannedDate"
-              type="date"
-              class="w-full rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3 text-sm outline-none"
-            />
-            <input
-              v-model="form.plannedTime"
-              type="time"
-              class="w-full rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3 text-sm outline-none"
-            />
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label class="block">
+              <span class="mb-1.5 block px-1 text-xs text-[var(--yy-muted)]">日期</span>
+              <input
+                v-model="form.plannedDate"
+                type="date"
+                class="w-full min-w-0 rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3 text-sm outline-none"
+              />
+            </label>
+            <label class="block">
+              <span class="mb-1.5 block px-1 text-xs text-[var(--yy-muted)]">时间</span>
+              <input
+                v-model="form.plannedTime"
+                type="time"
+                class="w-full min-w-0 rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3 text-sm outline-none"
+              />
+            </label>
           </div>
 
           <textarea

@@ -342,14 +342,14 @@ watch(activeTab, async (tab) => {
 </script>
 
 <template>
-  <section class="messages-page yy-page flex flex-col gap-4 pb-2 pt-5">
-    <header class="yy-enter flex items-start justify-between gap-4 px-1">
+  <section class="messages-page yy-page flex flex-col gap-3 pb-2 pt-3 sm:gap-4 sm:pt-5">
+    <header class="yy-enter flex items-start justify-between gap-3 px-1 sm:gap-4">
       <div>
         <p class="yy-kicker">Family messages</p>
-        <h1 class="yy-display mt-2 text-[32px] font-bold leading-none text-[var(--yy-ink)]">消息</h1>
-        <p v-if="hasFamily" class="mt-2 text-sm text-[var(--yy-muted)]">{{ currentFamily?.name }}的悄悄话</p>
+        <h1 class="yy-display mt-1.5 text-[28px] font-bold leading-none text-[var(--yy-ink)] sm:mt-2 sm:text-[32px]">消息</h1>
+        <p v-if="hasFamily" class="mt-1.5 text-xs text-[var(--yy-muted)] sm:mt-2 sm:text-sm">{{ currentFamily?.name }}的悄悄话</p>
       </div>
-      <span class="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--yy-tomato)] text-white shadow-[0_12px_28px_rgba(207,100,71,0.24)]">
+      <span class="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--yy-tomato)] text-white shadow-[0_12px_28px_rgba(207,100,71,0.24)] sm:h-12 sm:w-12">
         <MessageCircle class="h-6 w-6" :stroke-width="1.8" />
       </span>
     </header>
@@ -357,7 +357,7 @@ watch(activeTab, async (tab) => {
     <div class="yy-card flex gap-2 p-1">
       <button
         type="button"
-        class="flex flex-1 items-center justify-center gap-2 rounded-[20px] px-4 py-3 text-sm font-medium transition"
+        class="flex flex-1 items-center justify-center gap-2 rounded-[20px] px-3 py-2.5 text-[13px] font-medium transition sm:px-4 sm:py-3 sm:text-sm"
         :class="
           activeTab === 'family'
             ? 'bg-[var(--yy-ink)] text-white shadow-sm'
@@ -370,7 +370,7 @@ watch(activeTab, async (tab) => {
       </button>
       <button
         type="button"
-        class="flex flex-1 items-center justify-center gap-2 rounded-[20px] px-4 py-3 text-sm font-medium transition"
+        class="flex flex-1 items-center justify-center gap-2 rounded-[20px] px-3 py-2.5 text-[13px] font-medium transition sm:px-4 sm:py-3 sm:text-sm"
         :class="
           activeTab === 'ai'
             ? 'bg-[var(--yy-tomato)] text-white shadow-sm'
@@ -515,21 +515,21 @@ watch(activeTab, async (tab) => {
         @change="handleAiImageChange"
       />
 
-      <div class="yy-card space-y-3 p-4">
-        <div class="flex items-start justify-between gap-3">
+      <div class="yy-card space-y-3 p-3 sm:p-4">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div class="min-w-0">
             <p class="text-[11px] uppercase tracking-[0.16em] text-[var(--yy-muted)]">当前对话</p>
             <h2 class="mt-1 truncate text-base font-semibold text-[var(--yy-ink)]">
               {{ currentConversation?.title ?? '新对话' }}
             </h2>
-            <p class="mt-1 text-xs text-[var(--yy-muted)]">
+            <p class="mt-1 text-[11px] leading-5 text-[var(--yy-muted)] sm:text-xs">
               {{ currentConversation ? '切换历史对话可继续之前的上下文。' : '开启一个新话题，AI 会按新的对话上下文回答。' }}
             </p>
           </div>
-          <div class="flex shrink-0 items-center gap-2">
+          <div class="grid shrink-0 grid-cols-2 gap-2 sm:flex sm:items-center">
             <button
               type="button"
-              class="inline-flex items-center gap-1.5 rounded-full bg-[var(--yy-cream)] px-3 py-2 text-xs font-medium text-[var(--yy-ink)]"
+              class="inline-flex items-center justify-center gap-1.5 rounded-full bg-[var(--yy-cream)] px-3 py-2 text-xs font-medium text-[var(--yy-ink)]"
               @click="aiHistoryPopupVisible = true"
             >
               <History class="h-3.5 w-3.5" />
@@ -537,7 +537,7 @@ watch(activeTab, async (tab) => {
             </button>
             <button
               type="button"
-              class="inline-flex items-center gap-1.5 rounded-full bg-[var(--yy-tomato)] px-3 py-2 text-xs font-medium text-white"
+              class="inline-flex items-center justify-center gap-1.5 rounded-full bg-[var(--yy-tomato)] px-3 py-2 text-xs font-medium text-white"
               @click="handleNewAiConversation"
             >
               <Plus class="h-3.5 w-3.5" />
@@ -545,7 +545,7 @@ watch(activeTab, async (tab) => {
             </button>
           </div>
         </div>
-        <div class="rounded-[22px] border border-[var(--yy-line)] bg-white/70 px-4 py-3 text-sm leading-6 text-[var(--yy-muted)]">
+        <div class="rounded-[22px] border border-[var(--yy-line)] bg-white/70 px-3 py-2.5 text-[13px] leading-5 text-[var(--yy-muted)] sm:px-4 sm:py-3 sm:text-sm sm:leading-6">
           AI 小厨会结合当前家庭菜品库、你的文字描述和冰箱图片，推荐适合做的菜。
         </div>
       </div>
@@ -794,7 +794,7 @@ watch(activeTab, async (tab) => {
 <style scoped>
 .messages-page {
   height: calc(100dvh - 6.75rem - env(safe-area-inset-bottom));
-  min-height: 32rem;
+  min-height: 30rem;
 }
 
 .message-list {

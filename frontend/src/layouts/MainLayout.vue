@@ -26,6 +26,7 @@ const tabs = [
 ]
 
 const active = computed(() => (route.name === 'journal' ? 'profile' : (route.name as string)))
+const isMessagesRoute = computed(() => route.name === 'messages')
 const unreadLabel = computed(() => (unreadCount.value > 99 ? '99+' : String(unreadCount.value)))
 
 function navigate(path: string) {
@@ -81,7 +82,10 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="yy-shell mx-auto flex min-h-screen w-full max-w-[480px] flex-col">
-    <main class="flex-1 pb-[calc(6.75rem+env(safe-area-inset-bottom))]">
+    <main
+      class="flex-1"
+      :class="isMessagesRoute ? 'pb-0' : 'pb-[calc(6.75rem+env(safe-area-inset-bottom))]'"
+    >
       <router-view />
     </main>
 
