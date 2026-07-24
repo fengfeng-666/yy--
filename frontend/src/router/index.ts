@@ -17,7 +17,6 @@ const OrderDetailPage = () => import('@/pages/OrderDetailPage.vue')
 const OrdersPage = () => import('@/pages/OrdersPage.vue')
 const PlansPage = () => import('@/pages/PlansPage.vue')
 const ProfilePage = () => import('@/pages/ProfilePage.vue')
-const ShoppingListsPage = () => import('@/pages/ShoppingListsPage.vue')
 
 const routes: RouteRecordRaw[] = [
   {
@@ -107,12 +106,6 @@ const routes: RouteRecordRaw[] = [
     path: '/orders/:id',
     name: 'order-detail',
     component: OrderDetailPage,
-    meta: { requiresAuth: true, requiresFamily: true },
-  },
-  {
-    path: '/shopping-lists',
-    name: 'shopping-lists',
-    component: ShoppingListsPage,
     meta: { requiresAuth: true, requiresFamily: true },
   },
 ]

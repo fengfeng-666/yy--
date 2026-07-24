@@ -26,33 +26,10 @@ const ratingText = computed(
       {{ recommendation.reason }}
     </p>
 
-    <div v-if="recommendation.matched_ingredients.length" class="mt-3">
-      <p class="text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--yy-muted)]">匹配食材</p>
-      <div class="mt-2 flex flex-wrap gap-2">
-        <span
-          v-for="ingredient in recommendation.matched_ingredients"
-          :key="ingredient"
-          class="rounded-full bg-[var(--yy-apricot)]/20 px-3 py-1 text-xs text-[var(--yy-tomato)]"
-        >
-          {{ ingredient }}
-        </span>
-      </div>
-    </div>
-
     <div v-if="recommendation.required_ingredients.length" class="mt-3">
-      <p class="text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--yy-muted)]">所需食材</p>
       <p class="mt-2 text-xs leading-5 text-[var(--yy-ink)]">
-        {{ recommendation.required_ingredients.join('、') }}
+        需要：{{ recommendation.required_ingredients.slice(0, 6).join('、') }}
       </p>
-    </div>
-
-    <div v-if="recommendation.steps.length" class="mt-3">
-      <p class="text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--yy-muted)]">做法</p>
-      <ol class="mt-2 space-y-1.5 text-xs leading-5 text-[var(--yy-ink)]">
-        <li v-for="(step, index) in recommendation.steps" :key="`${recommendation.dish_name}-${index}`">
-          {{ index + 1 }}. {{ step }}
-        </li>
-      </ol>
     </div>
   </article>
 </template>

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.ai_chat import AiChatMessage
 from app.models.dish import Dish
 from app.schemas.agent import AgentResult
-from app.services.agent_tools import build_shopping_list_action_draft, build_tool_traces
+from app.services.agent_tools import build_tool_traces
 from app.services.ai_provider import SummaryDeltaHandler, generate_ai_recommendation
 from app.services.family_preference import build_family_preference_summary
 from app.services.rag_retriever import retrieve_recipe_sources
@@ -17,12 +17,8 @@ class DishKnowledgeSnapshot(TypedDict):
     dish_id: int
     name: str
     description: str
-    cooking_minutes: int | None
-    difficulty: int | None
     spicy_level: int | None
     is_available: bool
-    ingredients: list[str]
-    steps: list[str]
     preferences: list[str]
 
 
@@ -34,14 +30,8 @@ def snapshot_dish_knowledge(dishes: Sequence[Dish]) -> list[DishKnowledgeSnapsho
                 "dish_id": dish.id,
                 "name": dish.name,
                 "description": dish.description or "",
-                "cooking_minutes": dish.cooking_minutes,
-                "difficulty": dish.difficulty,
                 "spicy_level": dish.spicy_level,
                 "is_available": dish.is_available,
-                "ingredients": [
-                    link.ingredient.name for link in dish.ingredients if link.ingredient
-                ],
-                "steps": [step.content for step in dish.steps],
                 "preferences": [
                     item.preference_note for item in dish.preferences if item.preference_note
                 ],
@@ -61,12 +51,8 @@ def build_agent_system_prompt(
             "dish_id": dish["dish_id"],
             "name": dish["name"],
             "description": dish["description"],
-            "cooking_minutes": dish["cooking_minutes"],
-            "difficulty": dish["difficulty"],
             "spicy_level": dish["spicy_level"],
             "is_available": dish["is_available"],
-            "ingredients": dish["ingredients"],
-            "steps": dish["steps"],
             "preferences": dish["preferences"],
         }
         for dish in dishes
@@ -82,7 +68,10 @@ def build_agent_system_prompt(
         '[{"dish_name": string, "rating": 1-5, "required_ingredients": string[], '
         '"matched_ingredients": string[], "steps": string[], "reason": string}]}.'
         "如果没有上传图片，recognized_ingredients 必须返回空数组。"
-        "推荐时优先命中家庭已有菜品；如果需要参考常见做法，可以补全食材与步骤，但要明确理由。"
+        "推荐时优先命中家庭已有菜品。"
+        "每道菜的 required_ingredients 只列主要食材和必要调味料，最多 6 项，保持简明。"
+        "steps 必须返回空数组，不要展开制作步骤。"
+        "不生成购物清单，也不要询问用户是否要生成购物清单。"
         f"家庭偏好摘要：{preference_summary}。"
         f"检索到的家庭菜品知识：{json.dumps(recipe_sources, ensure_ascii=False)}。"
         f"当前家庭菜品全量知识：{json.dumps(candidate_dishes, ensure_ascii=False)}。"
@@ -130,7 +119,6 @@ async def execute_agent_turn(
         image_data_url=image_data_url,
         on_summary_delta=on_summary_delta,
     )
-    action_draft = build_shopping_list_action_draft(parsed.recommendations)
     return AgentResult(
         summary=parsed.summary,
         recommendations=parsed.recommendations,
@@ -141,7 +129,7 @@ async def execute_agent_turn(
             preference_summary=preference_summary,
             has_image=image_data_url is not None,
         ),
-        action_draft=action_draft,
+        action_draft=None,
         confidence=0.9 if retrieval_sources else 0.7,
         raw_model_output=parsed.raw_model_output,
     )

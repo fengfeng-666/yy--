@@ -10,13 +10,10 @@ from app.schemas.ai_chat import (
     AiChatConversationPage,
     AiChatMessagePage,
     AiChatTurnResponse,
-    ConfirmAiActionResponse,
     CreateAiChatMessageRequest,
 )
 from app.schemas.common import ApiResponse, success_response
 from app.services.ai_chat import (
-    cancel_ai_action_for_user,
-    confirm_ai_action_for_user,
     create_ai_turn,
     delete_ai_conversation_for_user,
     list_ai_conversations_for_user,
@@ -138,43 +135,3 @@ async def stream_ai_chat_message(
             "X-Accel-Buffering": "no",
         },
     )
-
-
-@router.post(
-    "/actions/{message_id}/confirm",
-    response_model=ApiResponse[ConfirmAiActionResponse],
-    summary="确认 AI 动作",
-)
-async def confirm_ai_chat_action(
-    current_user: Annotated[User, Depends(get_current_user)],
-    current_family: Annotated[Family, Depends(get_current_family)],
-    session: DbSession,
-    message_id: Annotated[int, Path(gt=0)],
-) -> ApiResponse[ConfirmAiActionResponse]:
-    result = await confirm_ai_action_for_user(
-        session,
-        family_id=current_family.id,
-        user_id=current_user.id,
-        message_id=message_id,
-    )
-    return success_response(data=result, message="购物清单已生成")
-
-
-@router.post(
-    "/actions/{message_id}/cancel",
-    response_model=ApiResponse[ConfirmAiActionResponse],
-    summary="取消 AI 动作",
-)
-async def cancel_ai_chat_action(
-    current_user: Annotated[User, Depends(get_current_user)],
-    current_family: Annotated[Family, Depends(get_current_family)],
-    session: DbSession,
-    message_id: Annotated[int, Path(gt=0)],
-) -> ApiResponse[ConfirmAiActionResponse]:
-    result = await cancel_ai_action_for_user(
-        session,
-        family_id=current_family.id,
-        user_id=current_user.id,
-        message_id=message_id,
-    )
-    return success_response(data=result, message="AI 动作已取消")

@@ -5,7 +5,6 @@ import { showConfirmDialog, showFailToast, showSuccessToast } from 'vant'
 import { ArrowDown, ArrowLeft, Bot, ChevronRight, History, ImagePlus, MessageCircle, Plus, SendHorizontal, Trash2, WifiOff } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 
-import AiActionDraftCard from '@/components/AiActionDraftCard.vue'
 import AiImageAttachmentPreview from '@/components/AiImageAttachmentPreview.vue'
 import AiRecommendationCard from '@/components/AiRecommendationCard.vue'
 import AiRetrievalSources from '@/components/AiRetrievalSources.vue'
@@ -63,7 +62,6 @@ const hasNewFamilyMessages = ref(false)
 const aiLoaded = ref(false)
 const aiImagePreviewUrl = ref('')
 const aiHistoryPopupVisible = ref(false)
-const aiActionLoadingMessageId = ref<number | null>(null)
 let pollTimer: number | undefined
 
 const canSendFamily = computed(() => Boolean(familyDraft.value.trim()) && !familySending.value)
@@ -279,30 +277,6 @@ async function submitAiMessage() {
   } catch (error) {
     if (!aiDraft.value) aiDraft.value = submittedDraft
     showFailToast(error instanceof Error ? error.message : 'AI 消息发送失败')
-  }
-}
-
-async function handleConfirmAiAction(messageId: number) {
-  aiActionLoadingMessageId.value = messageId
-  try {
-    await aiChatStore.confirmAction(messageId)
-    showSuccessToast('购物清单已生成')
-  } catch (error) {
-    showFailToast(error instanceof Error ? error.message : '确认失败')
-  } finally {
-    aiActionLoadingMessageId.value = null
-  }
-}
-
-async function handleCancelAiAction(messageId: number) {
-  aiActionLoadingMessageId.value = messageId
-  try {
-    await aiChatStore.cancelAction(messageId)
-    showSuccessToast('已取消这次生成')
-  } catch (error) {
-    showFailToast(error instanceof Error ? error.message : '取消失败')
-  } finally {
-    aiActionLoadingMessageId.value = null
   }
 }
 
@@ -747,14 +721,6 @@ watch(
                 <AiToolTrace
                   v-if="message.role === 'assistant' && message.metadata_json?.tool_calls?.length"
                   :traces="message.metadata_json.tool_calls"
-                />
-
-                <AiActionDraftCard
-                  v-if="message.role === 'assistant' && message.metadata_json?.action_draft"
-                  :draft="message.metadata_json.action_draft"
-                  :loading="aiActionLoadingMessageId === message.id"
-                  @confirm="handleConfirmAiAction(message.id)"
-                  @cancel="handleCancelAiAction(message.id)"
                 />
               </div>
             </article>

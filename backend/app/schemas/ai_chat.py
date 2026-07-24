@@ -44,6 +44,18 @@ class AiRecommendationItem(BaseModel):
     steps: list[str] = Field(default_factory=list)
     reason: str = Field(default="")
 
+    @field_validator("required_ingredients", mode="before")
+    @classmethod
+    def keep_ingredients_brief(cls, value: object) -> object:
+        if isinstance(value, list):
+            return value[:6]
+        return value
+
+    @field_validator("steps", mode="before")
+    @classmethod
+    def omit_steps(cls, _value: object) -> list[str]:
+        return []
+
 
 class FridgeImageAnalysisProfile(BaseModel):
     image_url: str

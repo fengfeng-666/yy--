@@ -3,8 +3,6 @@ import { defineStore } from 'pinia'
 
 import { ApiError } from '@/api/http'
 import {
-  cancelAiChatAction,
-  confirmAiChatAction,
   deleteAiChatConversation,
   fetchAiChatConversations,
   fetchAiChatMessages,
@@ -272,18 +270,6 @@ export const useAiChatStore = defineStore('ai-chat', () => {
     }
   }
 
-  async function confirmAction(messageId: number) {
-    const response = await confirmAiChatAction(messageId)
-    replaceMessage(response.message)
-    return response.message
-  }
-
-  async function cancelAction(messageId: number) {
-    const response = await cancelAiChatAction(messageId)
-    replaceMessage(response.message)
-    return response.message
-  }
-
   function reset() {
     conversations.value = []
     currentConversationId.value = null
@@ -314,8 +300,6 @@ export const useAiChatStore = defineStore('ai-chat', () => {
     clearSelectedImage,
     selectConversation,
     deleteConversation,
-    confirmAction,
-    cancelAction,
     startNewConversation,
     reset,
   }

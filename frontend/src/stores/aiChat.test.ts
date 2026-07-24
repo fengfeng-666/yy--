@@ -2,7 +2,6 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
-  confirmAiChatAction,
   deleteAiChatConversation,
   fetchAiChatConversations,
   fetchAiChatMessages,
@@ -13,8 +12,6 @@ import { useAiChatStore } from '@/stores/aiChat'
 import type { AiChatConversation, AiChatMessage } from '@/types/aiChat'
 
 vi.mock('@/api/aiChat', () => ({
-  cancelAiChatAction: vi.fn(),
-  confirmAiChatAction: vi.fn(),
   deleteAiChatConversation: vi.fn(),
   fetchAiChatConversations: vi.fn(),
   fetchAiChatMessages: vi.fn(),
@@ -172,32 +169,4 @@ describe('AI 聊天状态', () => {
     expect(store.connectionError).toBe(false)
   })
 
-  it('确认 AI 动作后更新消息草案状态', async () => {
-    vi.mocked(confirmAiChatAction).mockResolvedValue({
-      message: {
-        ...makeMessage(8),
-        metadata_json: {
-          summary: '总结 8',
-          recognized_ingredients: ['鸡蛋'],
-          recommendations: [],
-          retrieval_sources: [],
-          tool_calls: [],
-          action_draft: {
-            action_type: 'shopping_list',
-            title: '生成购物清单',
-            status: 'confirmed',
-            items: [{ name: '番茄' }],
-            shopping_list_id: 3,
-          },
-        },
-      },
-    })
-    const store = useAiChatStore()
-    store.messages = [makeMessage(7, 'user'), makeMessage(8)]
-
-    await store.confirmAction(8)
-
-    expect(store.messages[1]?.metadata_json?.action_draft?.status).toBe('confirmed')
-    expect(store.messages[1]?.metadata_json?.action_draft?.shopping_list_id).toBe(3)
-  })
 })

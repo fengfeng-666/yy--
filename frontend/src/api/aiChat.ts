@@ -4,7 +4,6 @@ import type {
   AiChatConversationPage,
   AiChatMessagePage,
   AiChatTurnResponse,
-  ConfirmAiActionResponse,
 } from '@/types/aiChat'
 import { apiBaseUrl } from '@/utils/env'
 
@@ -161,14 +160,4 @@ export async function streamAiChatMessage(
   }
   if (!completedTurn) throw new ApiError('AI 流式响应意外中断，请重试')
   return completedTurn
-}
-
-export async function confirmAiChatAction(messageId: number): Promise<ConfirmAiActionResponse> {
-  const { data } = await http.post<ApiResponse<ConfirmAiActionResponse>>(`/ai-chat/actions/${messageId}/confirm`)
-  return data.data
-}
-
-export async function cancelAiChatAction(messageId: number): Promise<ConfirmAiActionResponse> {
-  const { data } = await http.post<ApiResponse<ConfirmAiActionResponse>>(`/ai-chat/actions/${messageId}/cancel`)
-  return data.data
 }

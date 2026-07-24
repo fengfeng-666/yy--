@@ -11,7 +11,7 @@ from app.db.base import Base
 from app.db.session import get_db_session
 from app.main import create_application
 from app.schemas.agent import AgentResult
-from app.schemas.ai_chat import AiActionDraft, AiActionDraftItem, ParsedAiRecommendation
+from app.schemas.ai_chat import ParsedAiRecommendation
 from app.services import agent_runtime as agent_runtime_service
 from app.services import ai_chat as ai_chat_service
 from app.services.ai_chat import build_system_prompt
@@ -46,8 +46,6 @@ async def test_client() -> AsyncIterator[AsyncClient]:
 
 def build_stub_result(
     summary: str = "适合做这几道菜",
-    *,
-    with_action_draft: bool = False,
 ) -> AgentResult:
     return AgentResult.model_validate(
         {
@@ -59,7 +57,7 @@ def build_stub_result(
                     "rating": 5,
                     "required_ingredients": ["番茄", "鸡蛋", "油", "盐"],
                     "matched_ingredients": ["番茄", "鸡蛋"],
-                    "steps": ["番茄切块", "鸡蛋炒熟", "混合翻炒调味"],
+                    "steps": [],
                     "reason": "现有食材匹配度高，做法简单。",
                 },
                 {
@@ -67,22 +65,13 @@ def build_stub_result(
                     "rating": 4,
                     "required_ingredients": ["鸡蛋", "葱", "盐", "油"],
                     "matched_ingredients": ["鸡蛋", "葱"],
-                    "steps": ["葱切碎", "鸡蛋打散", "小火煎熟"],
+                    "steps": [],
                     "reason": "冰箱里现有食材足够。",
                 },
             ],
             "retrieval_sources": [],
             "tool_calls": [],
-            "action_draft": (
-                AiActionDraft(
-                    action_type="shopping_list",
-                    title="生成购物清单",
-                    summary="这些食材可能还需要补齐。",
-                    items=[AiActionDraftItem(name="油"), AiActionDraftItem(name="盐")],
-                ).model_dump()
-                if with_action_draft
-                else None
-            ),
+            "action_draft": None,
             "confidence": 0.92,
             "raw_model_output": '{"summary":"ok"}',
         }
@@ -94,6 +83,32 @@ def test_build_system_prompt_avoids_unsolicited_fridge_copy() -> None:
 
     assert "如果用户没有上传图片，不要主动提到冰箱" in prompt
     assert "recognized_ingredients 必须返回空数组" in prompt
+    assert "required_ingredients 最多 6 项" in prompt
+    assert "steps 必须返回空数组" in prompt
+    assert "不生成购物清单" in prompt
+
+
+def test_ai_recommendation_keeps_ingredients_brief_and_omits_steps() -> None:
+    parsed = ParsedAiRecommendation.model_validate(
+        {
+            "summary": "推荐一道菜",
+            "recognized_ingredients": [],
+            "recommendations": [
+                {
+                    "dish_name": "番茄炒蛋",
+                    "rating": 5,
+                    "required_ingredients": ["1", "2", "3", "4", "5", "6", "7"],
+                    "matched_ingredients": [],
+                    "steps": ["切菜", "翻炒"],
+                    "reason": "家常菜",
+                }
+            ],
+            "raw_model_output": '{"summary":"推荐一道菜"}',
+        }
+    )
+
+    assert parsed.recommendations[0].required_ingredients == ["1", "2", "3", "4", "5", "6"]
+    assert parsed.recommendations[0].steps == []
 
 
 def test_extract_streaming_summary_handles_partial_json_and_escapes() -> None:
@@ -103,7 +118,7 @@ def test_extract_streaming_summary_handles_partial_json_and_escapes() -> None:
 
 
 @pytest.mark.asyncio
-async def test_execute_agent_turn_snapshots_dish_relationships_before_awaits(
+async def test_execute_agent_turn_uses_only_basic_dish_knowledge_and_preferences(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     state = {"relationships_locked": False}
@@ -142,8 +157,8 @@ async def test_execute_agent_turn_snapshots_dish_relationships_before_awaits(
             self.difficulty = 1
             self.spicy_level = 0
             self.is_available = True
-            self.ingredients = GuardedCollection([IngredientLink("番茄"), IngredientLink("鸡蛋")])
-            self.steps = GuardedCollection([Step("番茄切块"), Step("鸡蛋炒熟")])
+            self.ingredients = GuardedCollection([IngredientLink("食材哨兵")])
+            self.steps = GuardedCollection([Step("步骤哨兵")])
             self.preferences = GuardedCollection([Preference("少油少盐")])
 
     async def fake_retrieve_recipe_sources(*_: object, **__: object):
@@ -156,9 +171,10 @@ async def test_execute_agent_turn_snapshots_dish_relationships_before_awaits(
     async def fake_generate_ai_recommendation(*_: object, **kwargs: object):
         prompt = kwargs["system_prompt"]
         assert "番茄炒蛋" in prompt
-        assert "番茄" in prompt
-        assert "鸡蛋" in prompt
         assert "少油少盐" in prompt
+        assert "食材哨兵" not in prompt
+        assert "步骤哨兵" not in prompt
+        assert "steps 必须返回空数组" in prompt
         return ParsedAiRecommendation.model_validate(
             {
                 "summary": "推荐番茄炒蛋",
@@ -169,7 +185,7 @@ async def test_execute_agent_turn_snapshots_dish_relationships_before_awaits(
                         "rating": 5,
                         "required_ingredients": ["番茄", "鸡蛋"],
                         "matched_ingredients": ["番茄", "鸡蛋"],
-                        "steps": ["番茄切块", "鸡蛋炒熟"],
+                        "steps": [],
                         "reason": "家庭常做，食材齐全。",
                     }
                 ],
@@ -204,6 +220,7 @@ async def test_execute_agent_turn_snapshots_dish_relationships_before_awaits(
 
     assert result.summary == "推荐番茄炒蛋"
     assert result.recommendations[0].dish_name == "番茄炒蛋"
+    assert result.action_draft is None
 
 
 async def create_family_with_dishes(client: AsyncClient, token: str) -> None:
@@ -558,41 +575,15 @@ async def test_ai_chat_returns_parse_error(
 
 
 @pytest.mark.asyncio
-async def test_confirm_ai_action_creates_shopping_list(
-    test_client: AsyncClient,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    async def fake_execute_agent_turn(*_: object, **__: object) -> AgentResult:
-        return build_stub_result(with_action_draft=True)
-
-    monkeypatch.setattr(
-        ai_chat_service,
-        "execute_agent_turn",
-        fake_execute_agent_turn,
-    )
-
+async def test_shopping_list_endpoints_are_not_available(test_client: AsyncClient) -> None:
     token = await register_and_login(test_client, "ai_action_owner")
-    await create_family_with_dishes(test_client, token)
-
-    created = await test_client.post(
-        "/ai-chat/messages",
-        data={"content": "帮我列一个要买的清单"},
-        headers=headers(token),
-    )
-    assert created.status_code == 200
-    assistant_message = created.json()["data"]["assistant_message"]
-    assert assistant_message["metadata_json"]["action_draft"]["status"] == "pending"
+    await create_family(test_client, token)
 
     confirmed = await test_client.post(
-        f"/ai-chat/actions/{assistant_message['id']}/confirm",
+        "/ai-chat/actions/1/confirm",
         headers=headers(token),
     )
-    assert confirmed.status_code == 200
-    confirmed_message = confirmed.json()["data"]["message"]
-    assert confirmed_message["metadata_json"]["action_draft"]["status"] == "confirmed"
-    assert confirmed_message["metadata_json"]["action_draft"]["shopping_list_id"] == 1
+    assert confirmed.status_code == 404
 
     shopping_lists = await test_client.get("/shopping-lists", headers=headers(token))
-    assert shopping_lists.status_code == 200
-    assert shopping_lists.json()["data"][0]["source_type"] == "ai_agent"
-    assert len(shopping_lists.json()["data"][0]["items"]) == 2
+    assert shopping_lists.status_code == 404

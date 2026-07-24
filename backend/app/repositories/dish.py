@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.dish import Dish
-from app.models.ingredient import DishIngredient, DishPreference, DishStep, Ingredient
+from app.models.ingredient import DishIngredient, DishPreference, Ingredient
 
 
 async def get_dish_by_id(session: AsyncSession, *, family_id: int, dish_id: int) -> Dish | None:
@@ -47,11 +47,6 @@ async def create_dish(
     description: str | None,
     price: float,
     image_url: str | None,
-    cooking_minutes: int | None,
-    difficulty: int | None,
-    spicy_level: int | None,
-    need_prepare_ahead: bool,
-    suitable_for_weekday: bool,
     is_available: bool,
 ) -> Dish:
     dish = Dish(
@@ -60,11 +55,6 @@ async def create_dish(
         description=description,
         price=price,
         image_url=image_url,
-        cooking_minutes=cooking_minutes,
-        difficulty=difficulty,
-        spicy_level=spicy_level,
-        need_prepare_ahead=need_prepare_ahead,
-        suitable_for_weekday=suitable_for_weekday,
         is_available=is_available,
     )
     session.add(dish)

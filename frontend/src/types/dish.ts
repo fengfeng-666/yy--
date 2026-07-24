@@ -58,30 +58,7 @@ export interface CreateDishPayload {
   description?: string
   price: number
   image_url?: string
-  cooking_minutes?: number
-  difficulty?: number
-  spicy_level?: number
-  need_prepare_ahead?: boolean
-  suitable_for_weekday?: boolean
   is_available: boolean
-  ingredients?: Array<{
-    ingredient_name: string
-    quantity?: number
-    unit?: string
-    is_optional?: boolean
-    note?: string
-    category?: string
-    sort_order?: number
-  }>
-  steps?: Array<{
-    step_no: number
-    content: string
-    duration_minutes?: number
-  }>
-  preferences?: Array<{
-    user_id: number
-    preference_note: string
-  }>
 }
 
 export interface UpdateDishPayload extends CreateDishPayload {}

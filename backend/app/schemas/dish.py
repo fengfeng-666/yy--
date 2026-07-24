@@ -3,70 +3,12 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-class DishIngredientInput(BaseModel):
-    ingredient_name: str = Field(min_length=1, max_length=100)
-    quantity: float | None = Field(default=None, ge=0)
-    unit: str | None = Field(default=None, max_length=20)
-    is_optional: bool = False
-    note: str | None = Field(default=None, max_length=255)
-    category: str | None = Field(default=None, max_length=50)
-    sort_order: int = Field(default=0, ge=0, le=999)
-
-    @field_validator("ingredient_name", mode="before")
-    @classmethod
-    def normalize_ingredient_name(cls, value: object) -> object:
-        if isinstance(value, str):
-            return value.strip()
-        return value
-
-    @field_validator("unit", "note", "category", mode="before")
-    @classmethod
-    def normalize_optional_text(cls, value: object) -> object:
-        if isinstance(value, str):
-            normalized = value.strip()
-            return normalized or None
-        return value
-
-
-class DishStepInput(BaseModel):
-    step_no: int = Field(ge=1, le=99)
-    content: str = Field(min_length=1, max_length=2000)
-    duration_minutes: int | None = Field(default=None, ge=0, le=1440)
-
-    @field_validator("content", mode="before")
-    @classmethod
-    def normalize_content(cls, value: object) -> object:
-        if isinstance(value, str):
-            return value.strip()
-        return value
-
-
-class DishPreferenceInput(BaseModel):
-    user_id: int = Field(gt=0)
-    preference_note: str = Field(min_length=1, max_length=2000)
-
-    @field_validator("preference_note", mode="before")
-    @classmethod
-    def normalize_preference_note(cls, value: object) -> object:
-        if isinstance(value, str):
-            return value.strip()
-        return value
-
-
 class DishCreateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     description: str | None = Field(default=None, max_length=500)
     price: float = Field(ge=0, le=99999)
     image_url: str | None = Field(default=None, max_length=500)
-    cooking_minutes: int | None = Field(default=None, ge=0, le=1440)
-    difficulty: int | None = Field(default=None, ge=1, le=5)
-    spicy_level: int | None = Field(default=None, ge=0, le=5)
-    need_prepare_ahead: bool = False
-    suitable_for_weekday: bool = False
     is_available: bool = True
-    ingredients: list[DishIngredientInput] = Field(default_factory=list, max_length=50)
-    steps: list[DishStepInput] = Field(default_factory=list, max_length=50)
-    preferences: list[DishPreferenceInput] = Field(default_factory=list, max_length=10)
 
     @field_validator("name")
     @classmethod
