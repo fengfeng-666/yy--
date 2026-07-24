@@ -323,7 +323,7 @@ rollback_service() {
 if [ "$scope" = "Backend" ] || [ "$scope" = "Full" ]; then
   mkdir -p backups
   backup_path="backups/pre-deploy-${release_sha:0:7}-$(date +%Y%m%d-%H%M%S).sql.gz"
-  "${compose[@]}" exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' | gzip -c > "$backup_path"
+  "${compose[@]}" exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' </dev/null | gzip -c > "$backup_path"
   test -s "$backup_path"
   echo "Database backup: $remote_dir/$backup_path"
 fi
@@ -386,6 +386,11 @@ echo "health=ok"
     if ($LASTEXITCODE -ne 0) {
         throw "Server deployment failed with exit code $LASTEXITCODE."
     }
+
+    $verifiedRelease = Get-RemoteRelease
+    if ($verifiedRelease -ne $FullSha) {
+        throw "Server release verification failed. Expected $FullSha, got '$verifiedRelease'."
+    }
 }
 
 try {
@@ -443,12 +448,14 @@ try {
         Get-RemoteRelease
     }
 
-    $changedPaths = if ($DryRun) {
-        @(Get-WorkingTreePaths)
-    }
-    else {
-        @(Get-ChangedPathsSinceRelease -RemoteRelease $remoteRelease)
-    }
+    $changedPaths = @(
+        if ($DryRun) {
+            Get-WorkingTreePaths
+        }
+        else {
+            Get-ChangedPathsSinceRelease -RemoteRelease $remoteRelease
+        }
+    )
     $deployScope = Resolve-DeployScope -Paths $changedPaths
 
     if ($deployScope -eq 'MiniProgramOnly') {
