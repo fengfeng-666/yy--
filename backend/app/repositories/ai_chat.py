@@ -167,6 +167,23 @@ async def get_ai_chat_message(
     return result.scalar_one_or_none()
 
 
+async def get_ai_chat_message_by_id(
+    session: AsyncSession,
+    *,
+    family_id: int,
+    user_id: int,
+    message_id: int,
+) -> AiChatMessage | None:
+    result = await session.execute(
+        select(AiChatMessage).where(
+            AiChatMessage.family_id == family_id,
+            AiChatMessage.user_id == user_id,
+            AiChatMessage.id == message_id,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
 async def create_ai_chat_message(
     session: AsyncSession,
     *,
@@ -188,6 +205,20 @@ async def create_ai_chat_message(
         metadata_json=metadata_json,
     )
     session.add(message)
+    await session.flush()
+    return message
+
+
+async def update_ai_chat_message_metadata(
+    session: AsyncSession,
+    message: AiChatMessage,
+    *,
+    metadata_json: dict[str, Any] | None,
+    message_kind: str | None = None,
+) -> AiChatMessage:
+    message.metadata_json = metadata_json
+    if message_kind is not None:
+        message.message_kind = message_kind
     await session.flush()
     return message
 

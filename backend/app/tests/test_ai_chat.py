@@ -10,9 +10,12 @@ from app.core.exceptions import AppException
 from app.db.base import Base
 from app.db.session import get_db_session
 from app.main import create_application
-from app.schemas.ai_chat import ParsedAiRecommendation
+from app.schemas.agent import AgentResult
+from app.schemas.ai_chat import AiActionDraft, AiActionDraftItem, ParsedAiRecommendation
+from app.services import agent_runtime as agent_runtime_service
 from app.services import ai_chat as ai_chat_service
 from app.services.ai_chat import build_system_prompt
+from app.services.ai_provider import extract_streaming_summary
 from app.tests.test_chat import create_family, headers, join_family, register_and_login
 
 
@@ -41,8 +44,12 @@ async def test_client() -> AsyncIterator[AsyncClient]:
     await engine.dispose()
 
 
-def build_stub_result(summary: str = "适合做这几道菜") -> ParsedAiRecommendation:
-    return ParsedAiRecommendation.model_validate(
+def build_stub_result(
+    summary: str = "适合做这几道菜",
+    *,
+    with_action_draft: bool = False,
+) -> AgentResult:
+    return AgentResult.model_validate(
         {
             "summary": summary,
             "recognized_ingredients": ["鸡蛋", "番茄", "葱"],
@@ -64,6 +71,19 @@ def build_stub_result(summary: str = "适合做这几道菜") -> ParsedAiRecomme
                     "reason": "冰箱里现有食材足够。",
                 },
             ],
+            "retrieval_sources": [],
+            "tool_calls": [],
+            "action_draft": (
+                AiActionDraft(
+                    action_type="shopping_list",
+                    title="生成购物清单",
+                    summary="这些食材可能还需要补齐。",
+                    items=[AiActionDraftItem(name="油"), AiActionDraftItem(name="盐")],
+                ).model_dump()
+                if with_action_draft
+                else None
+            ),
+            "confidence": 0.92,
             "raw_model_output": '{"summary":"ok"}',
         }
     )
@@ -74,6 +94,116 @@ def test_build_system_prompt_avoids_unsolicited_fridge_copy() -> None:
 
     assert "如果用户没有上传图片，不要主动提到冰箱" in prompt
     assert "recognized_ingredients 必须返回空数组" in prompt
+
+
+def test_extract_streaming_summary_handles_partial_json_and_escapes() -> None:
+    assert extract_streaming_summary('{"summary":"番茄\\n炒') == "番茄\n炒"
+    assert extract_streaming_summary('{"summary":"推荐\\u756a\\u8304') == "推荐番茄"
+    assert extract_streaming_summary('{"summary":"尚未完成\\') == "尚未完成"
+
+
+@pytest.mark.asyncio
+async def test_execute_agent_turn_snapshots_dish_relationships_before_awaits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state = {"relationships_locked": False}
+
+    class GuardedCollection:
+        def __init__(self, values: list[object]) -> None:
+            self.values = values
+
+        def __iter__(self):
+            if state["relationships_locked"]:
+                raise AssertionError("dish relationships were accessed after await")
+            return iter(self.values)
+
+    class IngredientRef:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+    class IngredientLink:
+        def __init__(self, name: str) -> None:
+            self.ingredient = IngredientRef(name)
+
+    class Step:
+        def __init__(self, content: str) -> None:
+            self.content = content
+
+    class Preference:
+        def __init__(self, note: str) -> None:
+            self.preference_note = note
+
+    class FakeDish:
+        def __init__(self) -> None:
+            self.id = 1
+            self.name = "番茄炒蛋"
+            self.description = "家常快手菜"
+            self.cooking_minutes = 10
+            self.difficulty = 1
+            self.spicy_level = 0
+            self.is_available = True
+            self.ingredients = GuardedCollection([IngredientLink("番茄"), IngredientLink("鸡蛋")])
+            self.steps = GuardedCollection([Step("番茄切块"), Step("鸡蛋炒熟")])
+            self.preferences = GuardedCollection([Preference("少油少盐")])
+
+    async def fake_retrieve_recipe_sources(*_: object, **__: object):
+        state["relationships_locked"] = True
+        return []
+
+    async def fake_build_family_preference_summary(*_: object, **__: object):
+        return "家庭偏好：少油少盐", ["少油少盐"]
+
+    async def fake_generate_ai_recommendation(*_: object, **kwargs: object):
+        prompt = kwargs["system_prompt"]
+        assert "番茄炒蛋" in prompt
+        assert "番茄" in prompt
+        assert "鸡蛋" in prompt
+        assert "少油少盐" in prompt
+        return ParsedAiRecommendation.model_validate(
+            {
+                "summary": "推荐番茄炒蛋",
+                "recognized_ingredients": [],
+                "recommendations": [
+                    {
+                        "dish_name": "番茄炒蛋",
+                        "rating": 5,
+                        "required_ingredients": ["番茄", "鸡蛋"],
+                        "matched_ingredients": ["番茄", "鸡蛋"],
+                        "steps": ["番茄切块", "鸡蛋炒熟"],
+                        "reason": "家庭常做，食材齐全。",
+                    }
+                ],
+                "raw_model_output": '{"summary":"推荐番茄炒蛋"}',
+            }
+        )
+
+    monkeypatch.setattr(
+        agent_runtime_service,
+        "retrieve_recipe_sources",
+        fake_retrieve_recipe_sources,
+    )
+    monkeypatch.setattr(
+        agent_runtime_service,
+        "build_family_preference_summary",
+        fake_build_family_preference_summary,
+    )
+    monkeypatch.setattr(
+        agent_runtime_service,
+        "generate_ai_recommendation",
+        fake_generate_ai_recommendation,
+    )
+
+    result = await agent_runtime_service.execute_agent_turn(
+        session=None,  # type: ignore[arg-type]
+        family_id=1,
+        user_content="帮我推荐一个菜品",
+        image_data_url=None,
+        recent_messages=[],
+        dishes=[FakeDish()],
+    )
+
+    assert result.summary == "推荐番茄炒蛋"
+    assert result.recommendations[0].dish_name == "番茄炒蛋"
 
 
 async def create_family_with_dishes(client: AsyncClient, token: str) -> None:
@@ -128,13 +258,13 @@ async def test_ai_chat_creates_and_lists_conversations(
     test_client: AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def fake_generate_ai_recommendation(**_: object) -> ParsedAiRecommendation:
+    async def fake_execute_agent_turn(*_: object, **__: object) -> AgentResult:
         return build_stub_result()
 
     monkeypatch.setattr(
         ai_chat_service,
-        "generate_ai_recommendation",
-        fake_generate_ai_recommendation,
+        "execute_agent_turn",
+        fake_execute_agent_turn,
     )
 
     token = await register_and_login(test_client, "ai_conversation_owner")
@@ -172,13 +302,13 @@ async def test_delete_ai_chat_conversation_success(
     test_client: AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def fake_generate_ai_recommendation(**_: object) -> ParsedAiRecommendation:
+    async def fake_execute_agent_turn(*_: object, **__: object) -> AgentResult:
         return build_stub_result()
 
     monkeypatch.setattr(
         ai_chat_service,
-        "generate_ai_recommendation",
-        fake_generate_ai_recommendation,
+        "execute_agent_turn",
+        fake_execute_agent_turn,
     )
 
     token = await register_and_login(test_client, "ai_delete_owner")
@@ -216,13 +346,13 @@ async def test_send_ai_chat_text_message_success(
     test_client: AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def fake_generate_ai_recommendation(**_: object) -> ParsedAiRecommendation:
+    async def fake_execute_agent_turn(*_: object, **__: object) -> AgentResult:
         return build_stub_result()
 
     monkeypatch.setattr(
         ai_chat_service,
-        "generate_ai_recommendation",
-        fake_generate_ai_recommendation,
+        "execute_agent_turn",
+        fake_execute_agent_turn,
     )
 
     token = await register_and_login(test_client, "ai_text_owner")
@@ -254,17 +384,48 @@ async def test_send_ai_chat_text_message_success(
 
 
 @pytest.mark.asyncio
+async def test_stream_ai_chat_message_emits_delta_and_persisted_turn(
+    test_client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_execute_agent_turn(*_: object, **kwargs: object) -> AgentResult:
+        on_summary_delta = kwargs.get("on_summary_delta")
+        assert callable(on_summary_delta)
+        await on_summary_delta("适合做")
+        await on_summary_delta("番茄炒蛋")
+        return build_stub_result("适合做番茄炒蛋")
+
+    monkeypatch.setattr(ai_chat_service, "execute_agent_turn", fake_execute_agent_turn)
+    token = await register_and_login(test_client, "ai_stream_owner")
+    await create_family_with_dishes(test_client, token)
+
+    response = await test_client.post(
+        "/ai-chat/messages/stream",
+        data={"content": "推荐一道快手菜"},
+        headers=headers(token),
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    assert response.headers["x-accel-buffering"] == "no"
+    assert 'event: delta\ndata: {"content":"适合做"}' in response.text
+    assert 'event: delta\ndata: {"content":"番茄炒蛋"}' in response.text
+    assert "event: complete" in response.text
+    assert '"assistant_message"' in response.text
+
+
+@pytest.mark.asyncio
 async def test_send_ai_chat_message_with_fridge_image_success(
     test_client: AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def fake_generate_ai_recommendation(**_: object) -> ParsedAiRecommendation:
+    async def fake_execute_agent_turn(*_: object, **__: object) -> AgentResult:
         return build_stub_result("根据冰箱图片，推荐这几道菜。")
 
     monkeypatch.setattr(
         ai_chat_service,
-        "generate_ai_recommendation",
-        fake_generate_ai_recommendation,
+        "execute_agent_turn",
+        fake_execute_agent_turn,
     )
 
     token = await register_and_login(test_client, "ai_image_owner")
@@ -298,13 +459,13 @@ async def test_ai_chat_respects_family_isolation(
     test_client: AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def fake_generate_ai_recommendation(**_: object) -> ParsedAiRecommendation:
+    async def fake_execute_agent_turn(*_: object, **__: object) -> AgentResult:
         return build_stub_result()
 
     monkeypatch.setattr(
         ai_chat_service,
-        "generate_ai_recommendation",
-        fake_generate_ai_recommendation,
+        "execute_agent_turn",
+        fake_execute_agent_turn,
     )
 
     owner_token = await register_and_login(test_client, "ai_family_owner")
@@ -326,7 +487,9 @@ async def test_ai_chat_respects_family_isolation(
     member_history = await test_client.get("/ai-chat/messages", headers=headers(member_token))
     assert member_history.status_code == 422
 
-    member_conversations = await test_client.get("/ai-chat/conversations", headers=headers(member_token))
+    member_conversations = await test_client.get(
+        "/ai-chat/conversations", headers=headers(member_token)
+    )
     assert member_conversations.status_code == 200
     assert member_conversations.json()["data"]["items"] == []
 
@@ -336,7 +499,7 @@ async def test_ai_chat_returns_provider_error(
     test_client: AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def fake_generate_ai_recommendation(**_: object) -> ParsedAiRecommendation:
+    async def fake_execute_agent_turn(*_: object, **__: object) -> AgentResult:
         raise AppException(
             code=ErrorCode.INTERNAL_ERROR,
             message="AI 服务暂时不可用，请稍后再试",
@@ -345,8 +508,8 @@ async def test_ai_chat_returns_provider_error(
 
     monkeypatch.setattr(
         ai_chat_service,
-        "generate_ai_recommendation",
-        fake_generate_ai_recommendation,
+        "execute_agent_turn",
+        fake_execute_agent_turn,
     )
 
     token = await register_and_login(test_client, "ai_error_owner")
@@ -368,7 +531,7 @@ async def test_ai_chat_returns_parse_error(
     test_client: AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def fake_generate_ai_recommendation(**_: object) -> ParsedAiRecommendation:
+    async def fake_execute_agent_turn(*_: object, **__: object) -> AgentResult:
         raise AppException(
             code=ErrorCode.INTERNAL_ERROR,
             message="AI 返回格式解析失败，请稍后再试",
@@ -377,8 +540,8 @@ async def test_ai_chat_returns_parse_error(
 
     monkeypatch.setattr(
         ai_chat_service,
-        "generate_ai_recommendation",
-        fake_generate_ai_recommendation,
+        "execute_agent_turn",
+        fake_execute_agent_turn,
     )
 
     token = await register_and_login(test_client, "ai_parse_owner")
@@ -392,3 +555,44 @@ async def test_ai_chat_returns_parse_error(
 
     assert response.status_code == 500
     assert response.json()["message"] == "AI 返回格式解析失败，请稍后再试"
+
+
+@pytest.mark.asyncio
+async def test_confirm_ai_action_creates_shopping_list(
+    test_client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_execute_agent_turn(*_: object, **__: object) -> AgentResult:
+        return build_stub_result(with_action_draft=True)
+
+    monkeypatch.setattr(
+        ai_chat_service,
+        "execute_agent_turn",
+        fake_execute_agent_turn,
+    )
+
+    token = await register_and_login(test_client, "ai_action_owner")
+    await create_family_with_dishes(test_client, token)
+
+    created = await test_client.post(
+        "/ai-chat/messages",
+        data={"content": "帮我列一个要买的清单"},
+        headers=headers(token),
+    )
+    assert created.status_code == 200
+    assistant_message = created.json()["data"]["assistant_message"]
+    assert assistant_message["metadata_json"]["action_draft"]["status"] == "pending"
+
+    confirmed = await test_client.post(
+        f"/ai-chat/actions/{assistant_message['id']}/confirm",
+        headers=headers(token),
+    )
+    assert confirmed.status_code == 200
+    confirmed_message = confirmed.json()["data"]["message"]
+    assert confirmed_message["metadata_json"]["action_draft"]["status"] == "confirmed"
+    assert confirmed_message["metadata_json"]["action_draft"]["shopping_list_id"] == 1
+
+    shopping_lists = await test_client.get("/shopping-lists", headers=headers(token))
+    assert shopping_lists.status_code == 200
+    assert shopping_lists.json()["data"][0]["source_type"] == "ai_agent"
+    assert len(shopping_lists.json()["data"][0]["items"]) == 2

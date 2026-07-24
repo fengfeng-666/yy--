@@ -9,6 +9,7 @@ from app.api.v1.health import router as health_router
 from app.api.v1.home import router as home_router
 from app.api.v1.notifications import router as notifications_router
 from app.api.v1.orders import router as orders_router
+from app.api.v1.shopping_lists import router as shopping_lists_router
 
 api_router = APIRouter()
 api_router.include_router(ai_chat_router)
@@ -20,3 +21,4 @@ api_router.include_router(health_router)
 api_router.include_router(home_router)
 api_router.include_router(notifications_router)
 api_router.include_router(orders_router)
+api_router.include_router(shopping_lists_router)

@@ -4,8 +4,11 @@ import { storeToRefs } from 'pinia'
 import { showConfirmDialog, showFailToast, showSuccessToast } from 'vant'
 import { ArrowDown, Bot, ChevronRight, History, ImagePlus, MessageCircle, Plus, SendHorizontal, Trash2, WifiOff } from 'lucide-vue-next'
 
+import AiActionDraftCard from '@/components/AiActionDraftCard.vue'
 import AiImageAttachmentPreview from '@/components/AiImageAttachmentPreview.vue'
 import AiRecommendationCard from '@/components/AiRecommendationCard.vue'
+import AiRetrievalSources from '@/components/AiRetrievalSources.vue'
+import AiToolTrace from '@/components/AiToolTrace.vue'
 import NoFamilyState from '@/components/NoFamilyState.vue'
 import { useAiChatStore } from '@/stores/aiChat'
 import { useAuthStore } from '@/stores/auth'
@@ -56,6 +59,7 @@ const hasNewFamilyMessages = ref(false)
 const aiLoaded = ref(false)
 const aiImagePreviewUrl = ref('')
 const aiHistoryPopupVisible = ref(false)
+const aiActionLoadingMessageId = ref<number | null>(null)
 let pollTimer: number | undefined
 
 const canSendFamily = computed(() => Boolean(familyDraft.value.trim()) && !familySending.value)
@@ -261,14 +265,40 @@ function handleAiImageChange(event: Event) {
 
 async function submitAiMessage() {
   if (!canSendAi.value) return
+  const submittedDraft = aiDraft.value
+  aiDraft.value = ''
   try {
-    const turn = await aiChatStore.sendMessage(aiDraft.value)
+    const turn = await aiChatStore.sendMessage(submittedDraft)
     if (!turn) return
-    aiDraft.value = ''
     clearAiSelectedImage()
     await scrollAiToBottom('smooth')
   } catch (error) {
+    if (!aiDraft.value) aiDraft.value = submittedDraft
     showFailToast(error instanceof Error ? error.message : 'AI 消息发送失败')
+  }
+}
+
+async function handleConfirmAiAction(messageId: number) {
+  aiActionLoadingMessageId.value = messageId
+  try {
+    await aiChatStore.confirmAction(messageId)
+    showSuccessToast('购物清单已生成')
+  } catch (error) {
+    showFailToast(error instanceof Error ? error.message : '确认失败')
+  } finally {
+    aiActionLoadingMessageId.value = null
+  }
+}
+
+async function handleCancelAiAction(messageId: number) {
+  aiActionLoadingMessageId.value = messageId
+  try {
+    await aiChatStore.cancelAction(messageId)
+    showSuccessToast('已取消这次生成')
+  } catch (error) {
+    showFailToast(error instanceof Error ? error.message : '取消失败')
+  } finally {
+    aiActionLoadingMessageId.value = null
   }
 }
 
@@ -339,6 +369,13 @@ watch(activeTab, async (tab) => {
     await scrollAiToBottom()
   }
 })
+
+watch(
+  () => aiMessages.value.at(-1)?.content,
+  () => {
+    if (activeTab.value === 'ai' && aiSending.value) void scrollAiToBottom()
+  },
+)
 </script>
 
 <template>
@@ -531,6 +568,7 @@ watch(activeTab, async (tab) => {
               type="button"
               class="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-[var(--yy-cream)] px-2.5 text-xs font-medium text-[var(--yy-ink)] sm:h-auto sm:px-3 sm:py-2"
               aria-label="查看 AI 历史记录"
+              :disabled="aiSending"
               @click="aiHistoryPopupVisible = true"
             >
               <History class="h-3.5 w-3.5" />
@@ -540,6 +578,7 @@ watch(activeTab, async (tab) => {
               type="button"
               class="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-[var(--yy-tomato)] px-2.5 text-xs font-medium text-white sm:h-auto sm:px-3 sm:py-2"
               aria-label="开始新的 AI 对话"
+              :disabled="aiSending"
               @click="handleNewAiConversation"
             >
               <Plus class="h-3.5 w-3.5" />
@@ -632,7 +671,17 @@ watch(activeTab, async (tab) => {
                     class="max-h-52 w-full rounded-2xl object-cover"
                   />
                   <p class="whitespace-pre-wrap break-words">
-                    {{ message.role === 'assistant' ? getAiSummary(message) : message.content }}
+                    <template v-if="message.role === 'assistant' && !getAiSummary(message) && aiSending">
+                      正在思考<span class="streaming-dots" aria-hidden="true">…</span>
+                    </template>
+                    <template v-else>
+                      {{ message.role === 'assistant' ? getAiSummary(message) : message.content }}
+                      <span
+                        v-if="message.role === 'assistant' && message.id < 0 && aiSending && getAiSummary(message)"
+                        class="streaming-cursor"
+                        aria-hidden="true"
+                      ></span>
+                    </template>
                   </p>
                   <div
                     v-if="message.role === 'assistant' && message.metadata_json?.recognized_ingredients?.length"
@@ -661,6 +710,24 @@ watch(activeTab, async (tab) => {
                     :recommendation="recommendation"
                   />
                 </div>
+
+                <AiRetrievalSources
+                  v-if="message.role === 'assistant' && message.metadata_json?.retrieval_sources?.length"
+                  :sources="message.metadata_json.retrieval_sources"
+                />
+
+                <AiToolTrace
+                  v-if="message.role === 'assistant' && message.metadata_json?.tool_calls?.length"
+                  :traces="message.metadata_json.tool_calls"
+                />
+
+                <AiActionDraftCard
+                  v-if="message.role === 'assistant' && message.metadata_json?.action_draft"
+                  :draft="message.metadata_json.action_draft"
+                  :loading="aiActionLoadingMessageId === message.id"
+                  @confirm="handleConfirmAiAction(message.id)"
+                  @cancel="handleCancelAiAction(message.id)"
+                />
               </div>
             </article>
           </div>
@@ -802,5 +869,27 @@ watch(activeTab, async (tab) => {
 .message-list {
   scrollbar-width: thin;
   scrollbar-color: var(--yy-line) transparent;
+}
+
+.streaming-cursor {
+  display: inline-block;
+  width: 0.12rem;
+  height: 1em;
+  margin-left: 0.2rem;
+  vertical-align: -0.12em;
+  background: currentColor;
+  animation: streaming-blink 0.9s steps(1) infinite;
+}
+
+@keyframes streaming-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .streaming-cursor {
+    animation: none;
+  }
 }
 </style>

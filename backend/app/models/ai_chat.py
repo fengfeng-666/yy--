@@ -18,6 +18,9 @@ class AiChatMessageKind:
     TEXT = "text"
     FRIDGE_IMAGE = "fridge_image"
     RECOMMENDATION = "recommendation"
+    TOOL_RESULT = "tool_result"
+    PLAN = "plan"
+    DRAFT_ACTION = "draft_action"
 
 
 class AiChatConversation(TimestampMixin, Base):

@@ -3,7 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { showFailToast, showSuccessToast } from 'vant'
 import { useRouter } from 'vue-router'
-import { BookHeart, ChevronRight, Copy, HousePlus, UsersRound } from 'lucide-vue-next'
+import { BookHeart, ChevronRight, ClipboardList, Copy, HousePlus, UsersRound } from 'lucide-vue-next'
 
 import { useAiChatStore } from '@/stores/aiChat'
 import { useAuthStore } from '@/stores/auth'
@@ -126,6 +126,23 @@ async function logout() {
         <span class="block text-xs font-medium tracking-[0.16em] text-[var(--yy-muted)]">DINING JOURNAL</span>
         <span class="mt-1 block text-lg font-semibold text-[var(--yy-ink)]">用餐食记</span>
         <span class="mt-1 block text-sm text-[var(--yy-muted)]">回顾一起认真吃过的每一顿饭</span>
+      </span>
+      <ChevronRight class="h-5 w-5 shrink-0 text-[var(--yy-muted)]" />
+    </button>
+
+    <button
+      v-if="hasFamily"
+      type="button"
+      class="yy-card yy-soft-button flex w-full items-center gap-4 p-5 text-left"
+      @click="router.push('/shopping-lists')"
+    >
+      <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--yy-sage)]/15 text-[var(--yy-sage)]">
+        <ClipboardList class="h-5 w-5" :stroke-width="2" />
+      </span>
+      <span class="min-w-0 flex-1">
+        <span class="block text-xs font-medium tracking-[0.16em] text-[var(--yy-muted)]">SHOPPING LISTS</span>
+        <span class="mt-1 block text-lg font-semibold text-[var(--yy-ink)]">购物清单</span>
+        <span class="mt-1 block text-sm text-[var(--yy-muted)]">查看 AI 生成和手动整理的买菜清单</span>
       </span>
       <ChevronRight class="h-5 w-5 shrink-0 text-[var(--yy-muted)]" />
     </button>

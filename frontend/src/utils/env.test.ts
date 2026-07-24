@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest'
 import { apiBaseUrl, normalizeApiBaseUrl } from '@/utils/env'
 
 describe('前端环境配置', () => {
-  it('未配置时使用本地后端地址', () => {
-    expect(normalizeApiBaseUrl()).toBe('http://localhost:8001/api/v1')
-    expect(apiBaseUrl).toBe('http://localhost:8001/api/v1')
+  it('未配置时使用同源 API 地址', () => {
+    expect(normalizeApiBaseUrl()).toBe('/api/v1')
+    expect(apiBaseUrl).toBe('/api/v1')
   })
 
   it('支持生产环境同源 API 地址', () => {

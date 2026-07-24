@@ -16,6 +16,14 @@ services:
       timeout: 5s
       retries: 10
 
+  chroma:
+    image: chromadb/chroma:0.5.23
+    container_name: yy-kitchen-chroma
+    ports:
+      - "8002:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+
   backend:
     build:
       context: ./backend
@@ -36,6 +44,16 @@ services:
       UPLOAD_DIR: uploads
       MAX_UPLOAD_SIZE_MB: 10
       CORS_ORIGINS: '["http://localhost:5174"]'
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-mimo-v2.5}
+      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-text-embedding-3-small}
+      AI_VECTOR_BACKEND: ${AI_VECTOR_BACKEND:-chroma}
+      CHROMA_PERSIST_DIR: ${CHROMA_PERSIST_DIR:-data/chroma}
+      PGVECTOR_TABLE_PREFIX: ${PGVECTOR_TABLE_PREFIX:-yy_ai}
+      RAG_TOP_K: ${RAG_TOP_K:-4}
+      RAG_SCORE_THRESHOLD: ${RAG_SCORE_THRESHOLD:-0.1}
     ports:
       - "8001:8001"
     depends_on:
@@ -46,3 +64,4 @@ services:
 
 volumes:
   postgres_data:
+  chroma_data:

@@ -3,14 +3,17 @@ import { defineStore } from 'pinia'
 
 import { ApiError } from '@/api/http'
 import {
+  cancelAiChatAction,
+  confirmAiChatAction,
   deleteAiChatConversation,
   fetchAiChatConversations,
   fetchAiChatMessages,
-  sendAiChatMessage,
+  streamAiChatMessage,
 } from '@/api/aiChat'
 import type { AiChatConversation, AiChatMessage } from '@/types/aiChat'
 
 const DEFAULT_IMAGE_PROMPT = '请根据这张冰箱图片推荐可以做的菜'
+let nextOptimisticMessageId = -1
 
 function shouldMarkConnectionError(error: unknown) {
   if (error instanceof ApiError && error.statusCode) {
@@ -116,6 +119,15 @@ export const useAiChatStore = defineStore('ai-chat', () => {
     }
   }
 
+  function replaceMessage(incoming: AiChatMessage) {
+    const existingIndex = messages.value.findIndex((message) => message.id === incoming.id)
+    if (existingIndex === -1) {
+      mergeMessages([incoming])
+      return
+    }
+    messages.value = messages.value.map((message) => (message.id === incoming.id ? incoming : message))
+  }
+
   async function loadOlderMessages() {
     if (olderLoading.value || !hasMore.value || !oldestMessageId.value || !currentConversationId.value) return 0
     olderLoading.value = true
@@ -140,13 +152,64 @@ export const useAiChatStore = defineStore('ai-chat', () => {
   async function sendMessage(content: string) {
     if (sending.value) return null
     sending.value = true
+    const userMessageId = nextOptimisticMessageId--
+    const assistantMessageId = nextOptimisticMessageId--
+    const createdAt = new Date().toISOString()
+    const conversationId = currentConversationId.value ?? 0
+    const optimisticUser: AiChatMessage = {
+      id: userMessageId,
+      family_id: 0,
+      user_id: 0,
+      conversation_id: conversationId,
+      role: 'user',
+      content: content.trim() || DEFAULT_IMAGE_PROMPT,
+      message_kind: selectedImage.value ? 'fridge_image' : 'text',
+      metadata_json: null,
+      created_at: createdAt,
+    }
+    const optimisticAssistant: AiChatMessage = {
+      id: assistantMessageId,
+      family_id: 0,
+      user_id: 0,
+      conversation_id: conversationId,
+      role: 'assistant',
+      content: '',
+      message_kind: 'recommendation',
+      metadata_json: {
+        summary: '',
+        recognized_ingredients: [],
+        recommendations: [],
+        retrieval_sources: [],
+        tool_calls: [],
+      },
+      created_at: createdAt,
+    }
+    messages.value = [...messages.value, optimisticUser, optimisticAssistant]
+
     try {
       const normalizedContent = content.trim() || DEFAULT_IMAGE_PROMPT
-      const turn = await sendAiChatMessage({
-        content: normalizedContent,
-        conversationId: currentConversationId.value,
-        imageFile: selectedImage.value,
-      })
+      const turn = await streamAiChatMessage(
+        {
+          content: normalizedContent,
+          conversationId: currentConversationId.value,
+          imageFile: selectedImage.value,
+        },
+        {
+          onDelta(delta) {
+            const message = messages.value.find((item) => item.id === assistantMessageId)
+            if (!message) return
+            const summary = `${message.metadata_json?.summary ?? ''}${delta}`
+            replaceMessage({
+              ...message,
+              content: summary,
+              metadata_json: { ...message.metadata_json!, summary },
+            })
+          },
+        },
+      )
+      messages.value = messages.value.filter(
+        (message) => message.id !== userMessageId && message.id !== assistantMessageId,
+      )
       upsertConversation(turn.conversation)
       currentConversationId.value = turn.conversation.id
       isDraftConversation.value = false
@@ -155,6 +218,9 @@ export const useAiChatStore = defineStore('ai-chat', () => {
       connectionError.value = false
       return turn
     } catch (error) {
+      messages.value = messages.value.filter(
+        (message) => message.id !== userMessageId && message.id !== assistantMessageId,
+      )
       connectionError.value = shouldMarkConnectionError(error)
       throw error
     } finally {
@@ -206,6 +272,18 @@ export const useAiChatStore = defineStore('ai-chat', () => {
     }
   }
 
+  async function confirmAction(messageId: number) {
+    const response = await confirmAiChatAction(messageId)
+    replaceMessage(response.message)
+    return response.message
+  }
+
+  async function cancelAction(messageId: number) {
+    const response = await cancelAiChatAction(messageId)
+    replaceMessage(response.message)
+    return response.message
+  }
+
   function reset() {
     conversations.value = []
     currentConversationId.value = null
@@ -236,6 +314,8 @@ export const useAiChatStore = defineStore('ai-chat', () => {
     clearSelectedImage,
     selectConversation,
     deleteConversation,
+    confirmAction,
+    cancelAction,
     startNewConversation,
     reset,
   }

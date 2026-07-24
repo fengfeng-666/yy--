@@ -1,6 +1,9 @@
+import asyncio
 import base64
 import json
-from collections.abc import Sequence
+import logging
+from collections.abc import AsyncIterator, Sequence
+from contextlib import suppress
 from datetime import datetime
 
 from fastapi import UploadFile, status
@@ -18,25 +21,32 @@ from app.repositories.ai_chat import (
     delete_ai_chat_conversation,
     get_ai_chat_conversation,
     get_ai_chat_message,
+    get_ai_chat_message_by_id,
     list_ai_chat_conversations,
     list_ai_chat_messages,
     list_recent_ai_chat_messages,
     update_ai_chat_conversation,
+    update_ai_chat_message_metadata,
 )
 from app.schemas.ai_chat import (
     AiChatConversationListItem,
     AiChatConversationPage,
     AiChatMessagePage,
     AiChatMessageProfile,
+    AiChatMetadata,
     AiChatTurnResponse,
     AiRecommendationItem,
+    ConfirmAiActionResponse,
     CreateAiChatMessageRequest,
 )
-from app.services.ai_provider import generate_ai_recommendation
+from app.services.agent_runtime import execute_agent_turn
+from app.services.ai_provider import SummaryDeltaHandler
 from app.services.dish import list_dishes_for_family
+from app.services.shopping_list import create_ai_agent_shopping_list
 from app.services.upload import read_and_validate_image, save_image_bytes
 
 DEFAULT_CONVERSATION_TITLE = "新对话"
+logger = logging.getLogger(__name__)
 
 
 def build_system_prompt(dishes: Sequence[Dish]) -> str:
@@ -46,6 +56,10 @@ def build_system_prompt(dishes: Sequence[Dish]) -> str:
             "name": dish.name,
             "description": dish.description or "",
             "price": dish.price,
+            "cooking_minutes": dish.cooking_minutes,
+            "difficulty": dish.difficulty,
+            "spicy_level": dish.spicy_level,
+            "ingredients": [link.ingredient.name for link in dish.ingredients if link.ingredient],
             "is_available": dish.is_available,
         }
         for dish in dishes
@@ -58,6 +72,7 @@ def build_system_prompt(dishes: Sequence[Dish]) -> str:
         "只有在用户明确上传了冰箱图片时，才可以提及冰箱图片、识别食材或看图分析。"
         "如果用户没有上传图片，不要主动提到冰箱、冰箱照片、食材识别、看不到图片、后续可上传图片等内容。"
         "如果用户上传了冰箱图片，请先识别冰箱中可能存在的食材，再结合用户问题给出推荐。"
+        "你可以参考菜品里的结构化食材、步骤和家庭偏好。"
         "输出必须是 JSON 对象，不要输出 markdown。"
         'JSON 结构固定为 '
         '{"summary": string, "recognized_ingredients": string[], "recommendations": '
@@ -104,6 +119,14 @@ def format_assistant_content(summary: str, recommendations: Sequence[AiRecommend
         if recommendation.steps:
             lines.append(f"做法：{'；'.join(recommendation.steps)}")
     return "\n".join(lines)
+
+
+def resolve_assistant_message_kind(metadata: AiChatMetadata) -> str:
+    if metadata.action_draft is not None:
+        return AiChatMessageKind.DRAFT_ACTION
+    if metadata.tool_calls or metadata.retrieval_sources:
+        return AiChatMessageKind.TOOL_RESULT
+    return AiChatMessageKind.RECOMMENDATION
 
 
 def build_conversation_title(content: str) -> str:
@@ -229,6 +252,7 @@ async def create_ai_turn(
     user_id: int,
     payload: CreateAiChatMessageRequest,
     image: UploadFile | None = None,
+    on_summary_delta: SummaryDeltaHandler | None = None,
 ) -> AiChatTurnResponse:
     settings = get_settings()
     dishes = await list_dishes_for_family(session, family_id=family_id)
@@ -286,14 +310,17 @@ async def create_ai_turn(
         conversation_id=conversation.id,
         limit=settings.ai_max_history_messages,
     )
-    parsed = await generate_ai_recommendation(
-        system_prompt=build_system_prompt(available_dishes),
-        history_messages=build_history_messages(recent_messages),
+    agent_result = await execute_agent_turn(
+        session,
+        family_id=family_id,
         user_content=payload.content,
         image_data_url=image_data_url,
+        recent_messages=recent_messages,
+        dishes=available_dishes,
+        on_summary_delta=on_summary_delta,
     )
-    recognized_ingredients = parsed.recognized_ingredients
-    raw_model_output = parsed.raw_model_output
+    recognized_ingredients = agent_result.recognized_ingredients
+    raw_model_output = agent_result.raw_model_output
 
     user_metadata: dict[str, object] | None = None
     if image_url is not None:
@@ -315,8 +342,27 @@ async def create_ai_turn(
         metadata_json=user_metadata,
     )
 
-    recommendations = parsed.recommendations
-    assistant_content = format_assistant_content(parsed.summary, recommendations)
+    recommendations = agent_result.recommendations
+    assistant_content = format_assistant_content(agent_result.summary, recommendations)
+    assistant_metadata = AiChatMetadata(
+        summary=agent_result.summary,
+        recognized_ingredients=recognized_ingredients,
+        recommendations=recommendations,
+        fridge_image=(
+            {
+                "image_url": image_url,
+                "recognized_ingredients": recognized_ingredients,
+            }
+            if image_url is not None
+            else None
+        ),
+        retrieval_sources=agent_result.retrieval_sources,
+        tool_calls=agent_result.tool_calls,
+        action_draft=agent_result.action_draft,
+        confirmation_required=agent_result.action_draft is not None,
+        confidence=agent_result.confidence,
+        raw_model_output=raw_model_output,
+    )
     assistant_message = await create_ai_chat_message(
         session,
         family_id=family_id,
@@ -324,21 +370,8 @@ async def create_ai_turn(
         conversation_id=conversation.id,
         role=AiChatRole.ASSISTANT,
         content=assistant_content,
-        message_kind=AiChatMessageKind.RECOMMENDATION,
-        metadata_json={
-            "summary": parsed.summary,
-            "recognized_ingredients": recognized_ingredients,
-            "recommendations": [item.model_dump() for item in recommendations],
-            "fridge_image": (
-                {
-                    "image_url": image_url,
-                    "recognized_ingredients": recognized_ingredients,
-                }
-                if image_url is not None
-                else None
-            ),
-            "raw_model_output": raw_model_output,
-        },
+        message_kind=resolve_assistant_message_kind(assistant_metadata),
+        metadata_json=assistant_metadata.model_dump(),
     )
 
     if image_url is not None and raw_model_output is not None:
@@ -398,3 +431,184 @@ async def create_ai_turn(
         user_message=AiChatMessageProfile.model_validate(persisted_user),
         assistant_message=AiChatMessageProfile.model_validate(persisted_assistant),
     )
+
+
+def encode_sse_event(event: str, data: object) -> str:
+    payload = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+    return f"event: {event}\ndata: {payload}\n\n"
+
+
+async def stream_ai_turn(
+    session: AsyncSession,
+    *,
+    family_id: int,
+    user_id: int,
+    payload: CreateAiChatMessageRequest,
+    image: UploadFile | None = None,
+) -> AsyncIterator[str]:
+    """Run an AI turn and expose summary deltas plus the persisted final turn as SSE."""
+    deltas: asyncio.Queue[str] = asyncio.Queue()
+
+    async def enqueue_delta(delta: str) -> None:
+        if delta:
+            await deltas.put(delta)
+
+    task = asyncio.create_task(
+        create_ai_turn(
+            session,
+            family_id=family_id,
+            user_id=user_id,
+            payload=payload,
+            image=image,
+            on_summary_delta=enqueue_delta,
+        )
+    )
+    yield encode_sse_event("ready", {"status": "processing"})
+
+    try:
+        while not task.done() or not deltas.empty():
+            if not deltas.empty():
+                yield encode_sse_event("delta", {"content": deltas.get_nowait()})
+                continue
+
+            delta_task = asyncio.create_task(deltas.get())
+            done, _ = await asyncio.wait(
+                {task, delta_task},
+                timeout=15,
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            if delta_task in done:
+                delta = delta_task.result()
+                yield encode_sse_event("delta", {"content": delta})
+            else:
+                delta_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await delta_task
+            if not done:
+                yield ": keep-alive\n\n"
+
+        turn = await task
+        yield encode_sse_event("complete", turn.model_dump(mode="json", by_alias=True))
+    except asyncio.CancelledError:
+        task.cancel()
+        raise
+    except AppException as exc:
+        yield encode_sse_event(
+            "error",
+            {"code": exc.code, "message": exc.message, "status_code": exc.status_code},
+        )
+    except Exception:
+        logger.exception("Unexpected error while streaming AI chat response")
+        yield encode_sse_event(
+            "error",
+            {
+                "code": ErrorCode.INTERNAL_ERROR,
+                "message": "AI 服务暂时不可用，请稍后再试",
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+            },
+        )
+    finally:
+        if not task.done():
+            task.cancel()
+            with suppress(asyncio.CancelledError, Exception):
+                await task
+
+
+async def confirm_ai_action_for_user(
+    session: AsyncSession,
+    *,
+    family_id: int,
+    user_id: int,
+    message_id: int,
+) -> ConfirmAiActionResponse:
+    message = await require_ai_action_message(
+        session,
+        family_id=family_id,
+        user_id=user_id,
+        message_id=message_id,
+    )
+    metadata = AiChatMetadata.model_validate(message.metadata_json or {})
+    draft = metadata.action_draft
+    if draft is None or draft.action_type != "shopping_list":
+        raise AppException(
+            code=ErrorCode.BAD_REQUEST,
+            message="当前消息没有可确认的购物清单草案",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+    if draft.status == "confirmed":
+        return ConfirmAiActionResponse(message=AiChatMessageProfile.model_validate(message))
+
+    shopping_list = await create_ai_agent_shopping_list(
+        session,
+        family_id=family_id,
+        action_draft=draft,
+        source_reference=f"ai_chat_message:{message.id}",
+    )
+    draft.status = "confirmed"
+    draft.shopping_list_id = shopping_list.id
+    metadata.action_draft = draft
+    metadata.confirmation_required = False
+    await update_ai_chat_message_metadata(
+        session,
+        message,
+        metadata_json=metadata.model_dump(),
+        message_kind=AiChatMessageKind.DRAFT_ACTION,
+    )
+    await session.commit()
+    return ConfirmAiActionResponse(message=AiChatMessageProfile.model_validate(message))
+
+
+async def cancel_ai_action_for_user(
+    session: AsyncSession,
+    *,
+    family_id: int,
+    user_id: int,
+    message_id: int,
+) -> ConfirmAiActionResponse:
+    message = await require_ai_action_message(
+        session,
+        family_id=family_id,
+        user_id=user_id,
+        message_id=message_id,
+    )
+    metadata = AiChatMetadata.model_validate(message.metadata_json or {})
+    draft = metadata.action_draft
+    if draft is None:
+        raise AppException(
+            code=ErrorCode.BAD_REQUEST,
+            message="当前消息没有可取消的动作草案",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+    draft.status = "cancelled"
+    metadata.action_draft = draft
+    metadata.confirmation_required = False
+    await update_ai_chat_message_metadata(
+        session,
+        message,
+        metadata_json=metadata.model_dump(),
+        message_kind=AiChatMessageKind.DRAFT_ACTION,
+    )
+    await session.commit()
+    return ConfirmAiActionResponse(message=AiChatMessageProfile.model_validate(message))
+
+
+async def require_ai_action_message(
+    session: AsyncSession,
+    *,
+    family_id: int,
+    user_id: int,
+    message_id: int,
+) -> AiChatMessage:
+    message = await get_ai_chat_message_by_id(
+        session,
+        family_id=family_id,
+        user_id=user_id,
+        message_id=message_id,
+    )
+    if message is None:
+        raise AppException(
+            code=ErrorCode.NOT_FOUND,
+            message="AI 动作不存在或已失效",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    return message

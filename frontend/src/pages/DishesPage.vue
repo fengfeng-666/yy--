@@ -28,8 +28,12 @@ const dishForm = reactive({
   name: '',
   description: '',
   priceText: '',
+  cookingMinutesText: '',
+  difficultyText: '',
   imageUrl: '',
   isAvailable: true,
+  ingredientsText: '',
+  stepsText: '',
 })
 
 const dishPopupTitle = computed(() => (dishForm.id ? '编辑菜品' : '新增菜品'))
@@ -47,8 +51,12 @@ function resetDishForm() {
   dishForm.name = ''
   dishForm.description = ''
   dishForm.priceText = ''
+  dishForm.cookingMinutesText = ''
+  dishForm.difficultyText = ''
   dishForm.imageUrl = ''
   dishForm.isAvailable = true
+  dishForm.ingredientsText = ''
+  dishForm.stepsText = ''
 }
 
 onMounted(async () => {
@@ -72,8 +80,12 @@ function openEditDish(dish: DishItem) {
   dishForm.name = dish.name
   dishForm.description = dish.description ?? ''
   dishForm.priceText = dish.price.toFixed(2)
+  dishForm.cookingMinutesText = dish.cooking_minutes ? String(dish.cooking_minutes) : ''
+  dishForm.difficultyText = dish.difficulty ? String(dish.difficulty) : ''
   dishForm.imageUrl = dish.image_url ?? ''
   dishForm.isAvailable = dish.is_available
+  dishForm.ingredientsText = dish.ingredients.map((item) => item.ingredient.name).join('\n')
+  dishForm.stepsText = dish.steps.map((item) => `${item.step_no}. ${item.content}`).join('\n')
   isDishPopupVisible.value = true
 }
 
@@ -89,14 +101,46 @@ async function submitDishForm() {
     return
   }
 
+  const cookingMinutes = dishForm.cookingMinutesText ? Number(dishForm.cookingMinutesText) : undefined
+  if (dishForm.cookingMinutesText && (Number.isNaN(cookingMinutes) || cookingMinutes < 0)) {
+    showFailToast('制作时长请输入正确的分钟数')
+    return
+  }
+
+  const difficulty = dishForm.difficultyText ? Number(dishForm.difficultyText) : undefined
+  if (dishForm.difficultyText && (Number.isNaN(difficulty) || difficulty < 1 || difficulty > 5)) {
+    showFailToast('难度请输入 1 到 5')
+    return
+  }
+
   isSubmittingDish.value = true
   try {
+    const ingredients = dishForm.ingredientsText
+      .split('\n')
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((ingredientName, index) => ({
+        ingredient_name: ingredientName,
+        sort_order: index,
+      }))
+    const steps = dishForm.stepsText
+      .split('\n')
+      .map((item) => item.replace(/^\d+\.\s*/, '').trim())
+      .filter(Boolean)
+      .map((content, index) => ({
+        step_no: index + 1,
+        content,
+      }))
     const payload = {
       name: dishForm.name.trim(),
       description: dishForm.description.trim() || undefined,
       price,
+      cooking_minutes: cookingMinutes,
+      difficulty,
       image_url: dishForm.imageUrl || undefined,
       is_available: dishForm.isAvailable,
+      ingredients,
+      steps,
     }
 
     if (dishForm.id) {
@@ -339,10 +383,44 @@ async function openDishDetail(dishId: number) {
           class="w-full rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3 text-sm outline-none"
         />
 
+        <div class="grid grid-cols-2 gap-3">
+          <input
+            v-model.trim="dishForm.cookingMinutesText"
+            type="number"
+            min="0"
+            step="1"
+            placeholder="制作时长(分钟)"
+            class="w-full rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3 text-sm outline-none"
+          />
+          <input
+            v-model.trim="dishForm.difficultyText"
+            type="number"
+            min="1"
+            max="5"
+            step="1"
+            placeholder="难度 1-5"
+            class="w-full rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3 text-sm outline-none"
+          />
+        </div>
+
         <textarea
           v-model.trim="dishForm.description"
           rows="4"
           placeholder="菜品描述，可选"
+          class="w-full rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3 text-sm outline-none"
+        ></textarea>
+
+        <textarea
+          v-model.trim="dishForm.ingredientsText"
+          rows="4"
+          placeholder="食材清单，每行一个，例如：番茄"
+          class="w-full rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3 text-sm outline-none"
+        ></textarea>
+
+        <textarea
+          v-model.trim="dishForm.stepsText"
+          rows="4"
+          placeholder="制作步骤，每行一步"
           class="w-full rounded-2xl border border-[var(--yy-line)] bg-[var(--yy-cream)] px-4 py-3 text-sm outline-none"
         ></textarea>
 

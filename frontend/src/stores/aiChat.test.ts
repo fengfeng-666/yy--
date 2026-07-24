@@ -2,20 +2,23 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  confirmAiChatAction,
   deleteAiChatConversation,
   fetchAiChatConversations,
   fetchAiChatMessages,
-  sendAiChatMessage,
+  streamAiChatMessage,
 } from '@/api/aiChat'
 import { ApiError } from '@/api/http'
 import { useAiChatStore } from '@/stores/aiChat'
 import type { AiChatConversation, AiChatMessage } from '@/types/aiChat'
 
 vi.mock('@/api/aiChat', () => ({
+  cancelAiChatAction: vi.fn(),
+  confirmAiChatAction: vi.fn(),
   deleteAiChatConversation: vi.fn(),
   fetchAiChatConversations: vi.fn(),
   fetchAiChatMessages: vi.fn(),
-  sendAiChatMessage: vi.fn(),
+  streamAiChatMessage: vi.fn(),
 }))
 
 function makeConversation(id: number, title = `对话 ${id}`): AiChatConversation {
@@ -55,6 +58,8 @@ function makeMessage(id: number, role: 'user' | 'assistant' = 'assistant', conve
                 reason: '简单好做',
               },
             ],
+            retrieval_sources: [],
+            tool_calls: [],
           }
         : null,
     created_at: `2026-07-23T10:${String(id).padStart(2, '0')}:00Z`,
@@ -85,7 +90,7 @@ describe('AI 聊天状态', () => {
   })
 
   it('发送图片消息时使用默认提示词并创建新对话', async () => {
-    vi.mocked(sendAiChatMessage).mockResolvedValue({
+    vi.mocked(streamAiChatMessage).mockResolvedValue({
       conversation: makeConversation(9, '冰箱图片推荐'),
       user_message: makeMessage(1, 'user', 9),
       assistant_message: makeMessage(2, 'assistant', 9),
@@ -99,11 +104,14 @@ describe('AI 聊天状态', () => {
 
     expect(turn?.conversation.id).toBe(9)
     expect(turn?.assistant_message.id).toBe(2)
-    expect(sendAiChatMessage).toHaveBeenCalledWith({
-      content: '请根据这张冰箱图片推荐可以做的菜',
-      conversationId: null,
-      imageFile: file,
-    })
+    expect(streamAiChatMessage).toHaveBeenCalledWith(
+      {
+        content: '请根据这张冰箱图片推荐可以做的菜',
+        conversationId: null,
+        imageFile: file,
+      },
+      expect.objectContaining({ onDelta: expect.any(Function) }),
+    )
     expect(store.selectedImage).toBeNull()
     expect(store.currentConversationId).toBe(9)
     expect(store.conversations[0]?.id).toBe(9)
@@ -142,7 +150,7 @@ describe('AI 聊天状态', () => {
   })
 
   it('发送失败时保留已选图片并标记连接异常', async () => {
-    vi.mocked(sendAiChatMessage).mockRejectedValue(new Error('AI 服务异常'))
+    vi.mocked(streamAiChatMessage).mockRejectedValue(new Error('AI 服务异常'))
     const store = useAiChatStore()
     const file = new File(['fake'], 'fridge.png', { type: 'image/png' })
     store.setSelectedImage(file)
@@ -162,5 +170,34 @@ describe('AI 聊天状态', () => {
     await expect(store.loadInitialMessages()).rejects.toThrow('AI 对话不存在或已被删除')
 
     expect(store.connectionError).toBe(false)
+  })
+
+  it('确认 AI 动作后更新消息草案状态', async () => {
+    vi.mocked(confirmAiChatAction).mockResolvedValue({
+      message: {
+        ...makeMessage(8),
+        metadata_json: {
+          summary: '总结 8',
+          recognized_ingredients: ['鸡蛋'],
+          recommendations: [],
+          retrieval_sources: [],
+          tool_calls: [],
+          action_draft: {
+            action_type: 'shopping_list',
+            title: '生成购物清单',
+            status: 'confirmed',
+            items: [{ name: '番茄' }],
+            shopping_list_id: 3,
+          },
+        },
+      },
+    })
+    const store = useAiChatStore()
+    store.messages = [makeMessage(7, 'user'), makeMessage(8)]
+
+    await store.confirmAction(8)
+
+    expect(store.messages[1]?.metadata_json?.action_draft?.status).toBe('confirmed')
+    expect(store.messages[1]?.metadata_json?.action_draft?.shopping_list_id).toBe(3)
   })
 })

@@ -118,6 +118,36 @@ function formatPrice(price: number) {
         </div>
       </article>
 
+      <article v-if="dish.ingredients.length" class="rounded-[28px] bg-white p-5 shadow-sm">
+        <p class="text-sm text-[var(--yy-muted)]">所需食材</p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <span
+            v-for="item in dish.ingredients"
+            :key="item.id"
+            class="rounded-full bg-[var(--yy-cream)] px-3 py-2 text-sm text-[var(--yy-ink)]"
+          >
+            {{ item.ingredient.name }}
+            <template v-if="item.quantity || item.unit">
+              · {{ item.quantity ?? '' }}{{ item.unit ?? '' }}
+            </template>
+          </span>
+        </div>
+      </article>
+
+      <article v-if="dish.steps.length" class="rounded-[28px] bg-white p-5 shadow-sm">
+        <p class="text-sm text-[var(--yy-muted)]">制作步骤</p>
+        <div class="mt-3 space-y-3">
+          <div
+            v-for="step in dish.steps"
+            :key="step.id"
+            class="rounded-2xl bg-[var(--yy-cream)] px-4 py-3 text-sm leading-6 text-[var(--yy-ink)]"
+          >
+            <p class="font-medium">步骤 {{ step.step_no }}</p>
+            <p class="mt-1">{{ step.content }}</p>
+          </div>
+        </div>
+      </article>
+
       <button
         type="button"
         class="w-full rounded-full bg-[var(--yy-ink)] px-5 py-4 text-sm font-medium text-white disabled:opacity-50"

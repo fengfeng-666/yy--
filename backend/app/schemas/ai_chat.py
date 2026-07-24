@@ -50,11 +50,47 @@ class FridgeImageAnalysisProfile(BaseModel):
     recognized_ingredients: list[str] = Field(default_factory=list)
 
 
+class AiRetrievalSource(BaseModel):
+    source_type: str
+    title: str
+    snippet: str
+    source_id: str | None = None
+    score: float | None = None
+
+
+class AiToolCallTrace(BaseModel):
+    tool_name: str
+    status: str
+    summary: str
+
+
+class AiActionDraftItem(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    quantity: float | None = None
+    unit: str | None = None
+    note: str | None = None
+    source_dish_name: str | None = None
+
+
+class AiActionDraft(BaseModel):
+    action_type: str
+    title: str
+    summary: str | None = None
+    status: str = "pending"
+    items: list[AiActionDraftItem] = Field(default_factory=list)
+    shopping_list_id: int | None = None
+
+
 class AiChatMetadata(BaseModel):
     summary: str | None = None
     recognized_ingredients: list[str] = Field(default_factory=list)
     recommendations: list[AiRecommendationItem] = Field(default_factory=list)
     fridge_image: FridgeImageAnalysisProfile | None = None
+    retrieval_sources: list[AiRetrievalSource] = Field(default_factory=list)
+    tool_calls: list[AiToolCallTrace] = Field(default_factory=list)
+    action_draft: AiActionDraft | None = None
+    confirmation_required: bool = False
+    confidence: float | None = None
     raw_model_output: str | None = None
 
 
@@ -88,6 +124,10 @@ class ParsedAiRecommendation(BaseModel):
     recognized_ingredients: list[str] = Field(default_factory=list)
     recommendations: list[AiRecommendationItem] = Field(default_factory=list)
     raw_model_output: str
+
+
+class ConfirmAiActionResponse(BaseModel):
+    message: AiChatMessageProfile
 
 
 class OpenAiCompatibleMessagePart(BaseModel):

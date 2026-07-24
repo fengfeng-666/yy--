@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, Path, Query, UploadFile
+from fastapi.responses import StreamingResponse
 
 from app.api.deps import DbSession, get_current_family, get_current_user
 from app.models.family import Family
@@ -9,20 +10,28 @@ from app.schemas.ai_chat import (
     AiChatConversationPage,
     AiChatMessagePage,
     AiChatTurnResponse,
+    ConfirmAiActionResponse,
     CreateAiChatMessageRequest,
 )
 from app.schemas.common import ApiResponse, success_response
 from app.services.ai_chat import (
+    cancel_ai_action_for_user,
+    confirm_ai_action_for_user,
     create_ai_turn,
     delete_ai_conversation_for_user,
     list_ai_conversations_for_user,
     list_ai_messages_for_user,
+    stream_ai_turn,
 )
 
 router = APIRouter(prefix="/ai-chat", tags=["ai-chat"])
 
 
-@router.get("/conversations", response_model=ApiResponse[AiChatConversationPage], summary="AI 对话列表")
+@router.get(
+    "/conversations",
+    response_model=ApiResponse[AiChatConversationPage],
+    summary="AI 对话列表",
+)
 async def get_ai_chat_conversations(
     current_user: Annotated[User, Depends(get_current_user)],
     current_family: Annotated[Family, Depends(get_current_family)],
@@ -98,3 +107,74 @@ async def create_ai_chat_message(
         image=image,
     )
     return success_response(data=turn, message="AI 回复已生成")
+
+
+@router.post(
+    "/messages/stream",
+    response_class=StreamingResponse,
+    summary="流式发送 AI 聊天消息",
+)
+async def stream_ai_chat_message(
+    current_user: Annotated[User, Depends(get_current_user)],
+    current_family: Annotated[Family, Depends(get_current_family)],
+    session: DbSession,
+    content: Annotated[str, Form(...)],
+    conversation_id: Annotated[int | None, Form()] = None,
+    image: Annotated[UploadFile | None, File()] = None,
+) -> StreamingResponse:
+    payload = CreateAiChatMessageRequest(content=content, conversation_id=conversation_id)
+    return StreamingResponse(
+        stream_ai_turn(
+            session,
+            family_id=current_family.id,
+            user_id=current_user.id,
+            payload=payload,
+            image=image,
+        ),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@router.post(
+    "/actions/{message_id}/confirm",
+    response_model=ApiResponse[ConfirmAiActionResponse],
+    summary="确认 AI 动作",
+)
+async def confirm_ai_chat_action(
+    current_user: Annotated[User, Depends(get_current_user)],
+    current_family: Annotated[Family, Depends(get_current_family)],
+    session: DbSession,
+    message_id: Annotated[int, Path(gt=0)],
+) -> ApiResponse[ConfirmAiActionResponse]:
+    result = await confirm_ai_action_for_user(
+        session,
+        family_id=current_family.id,
+        user_id=current_user.id,
+        message_id=message_id,
+    )
+    return success_response(data=result, message="购物清单已生成")
+
+
+@router.post(
+    "/actions/{message_id}/cancel",
+    response_model=ApiResponse[ConfirmAiActionResponse],
+    summary="取消 AI 动作",
+)
+async def cancel_ai_chat_action(
+    current_user: Annotated[User, Depends(get_current_user)],
+    current_family: Annotated[Family, Depends(get_current_family)],
+    session: DbSession,
+    message_id: Annotated[int, Path(gt=0)],
+) -> ApiResponse[ConfirmAiActionResponse]:
+    result = await cancel_ai_action_for_user(
+        session,
+        family_id=current_family.id,
+        user_id=current_user.id,
+        message_id=message_id,
+    )
+    return success_response(data=result, message="AI 动作已取消")
