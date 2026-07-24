@@ -3,6 +3,40 @@
 当前生产方案使用 Docker Compose：Caddy 提供公网 HTTPS 入口，Nginx 提供网站静态文件，
 FastAPI 负责业务接口，PostgreSQL 和上传文件使用独立持久化卷。
 
+## 一键部署（推荐）
+
+Windows 本机在项目根目录运行：
+
+```powershell
+.\deploy.cmd
+```
+
+脚本会自动识别前端、后端或全量变更，并依次完成：敏感文件检查、测试、提交、推送、
+安全打包、上传、按需重建、健康检查和公网验收。发现未提交改动时，会先显示文件列表并
+要求确认，不会静默提交。
+
+常用参数：
+
+```powershell
+# 仅演练检查，不提交、推送或上传
+.\deploy.cmd -DryRun -Scope Frontend
+
+# 明确只发布前端
+.\deploy.cmd -Scope Frontend
+
+# 紧急情况下跳过测试（不推荐）
+.\deploy.cmd -SkipTests
+
+# 备案和 DNS 生效后切换 HTTPS Compose
+.\deploy.cmd -Https -PublicUrl https://www.yykitchen.xyz
+```
+
+`deploy.cmd` 只对本次运行使用 PowerShell 执行策略绕过，不会修改 Windows 的全局安全设置。
+
+默认连接信息为 `ubuntu@124.221.19.62`，私钥为
+`%USERPROFILE%\.ssh\yykitchen_deploy_ed25519`，服务器目录为 `/opt/yykitchen`。
+如环境不同，可以通过 `-Server`、`-RemoteUser`、`-SshKey` 和 `-RemoteDir` 覆盖。
+
 ## 0. 云资源建议
 
 - 腾讯云中国内地轻量应用服务器：2 核 2GB、40GB SSD、带公网 IP，Ubuntu 24.04 LTS，
