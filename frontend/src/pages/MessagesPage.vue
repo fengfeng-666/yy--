@@ -929,7 +929,16 @@ watch(
 <style scoped>
 .messages-page {
   height: calc(100dvh - 6.75rem - env(safe-area-inset-bottom));
-  min-height: 30rem;
+  min-height: 0;
+  max-height: calc(100dvh - 6.75rem - env(safe-area-inset-bottom));
+  overflow: hidden;
+}
+
+@supports not (height: 100dvh) {
+  .messages-page {
+    height: calc(100vh - 6.75rem - env(safe-area-inset-bottom));
+    max-height: calc(100vh - 6.75rem - env(safe-area-inset-bottom));
+  }
 }
 
 .ai-workspace,
@@ -961,6 +970,7 @@ watch(
 @media (min-width: 768px) {
   .messages-page {
     min-height: 40rem;
+    max-height: none;
     padding-right: 2rem;
     padding-left: 2rem;
   }
