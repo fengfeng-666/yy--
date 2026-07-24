@@ -81,7 +81,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="yy-shell mx-auto flex min-h-screen w-full max-w-[480px] flex-col">
+  <div
+    class="yy-shell mx-auto flex min-h-screen w-full flex-col transition-[max-width] duration-300"
+    :class="isMessagesRoute ? 'max-w-[1180px]' : 'max-w-[480px]'"
+  >
     <main
       class="flex-1"
       :class="isMessagesRoute ? 'pb-0' : 'pb-[calc(6.75rem+env(safe-area-inset-bottom))]'"

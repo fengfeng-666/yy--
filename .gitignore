@@ -12,3 +12,8 @@
 frontend/dist/
 frontend/vite.config.ts.timestamp-*.mjs
 backend/uploads/
+
+# 本地发布包与数据库备份可能包含环境变量或用户上传文件，禁止提交。
+/*.tar.gz
+/*.sql
+/*.sql.gz

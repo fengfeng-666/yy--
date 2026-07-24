@@ -552,21 +552,88 @@ watch(
         @change="handleAiImageChange"
       />
 
-      <div class="yy-card flex shrink-0 items-center gap-2 p-2.5 sm:block sm:space-y-3 sm:p-4">
-        <div class="flex min-w-0 flex-1 items-center justify-between gap-2 sm:flex-row sm:items-start">
+      <div class="ai-workspace min-h-0 flex-1 md:grid md:grid-cols-[17.5rem_minmax(0,1fr)] md:gap-4">
+        <aside class="yy-card hidden min-h-0 flex-col overflow-hidden p-4 md:flex">
+          <div class="flex items-start gap-3 border-b border-[var(--yy-line)] pb-4">
+            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--yy-tomato)] text-white shadow-[0_10px_24px_rgba(207,100,71,0.22)]">
+              <Bot class="h-5 w-5" />
+            </span>
+            <div class="min-w-0">
+              <p class="text-sm font-semibold text-[var(--yy-ink)]">AI 小厨工作台</p>
+              <p class="mt-1 text-xs leading-5 text-[var(--yy-muted)]">菜品、冰箱和家庭偏好，都在一段对话里。</p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            class="mt-4 flex w-full items-center justify-center gap-2 rounded-[20px] bg-[var(--yy-tomato)] px-4 py-3 text-sm font-medium text-white shadow-sm transition"
+            :disabled="aiSending"
+            @click="handleNewAiConversation"
+          >
+            <Plus class="h-4 w-4" />
+            开启新对话
+          </button>
+
+          <div class="mt-5 flex min-h-0 flex-1 flex-col">
+            <div class="flex items-center justify-between px-1">
+              <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--yy-muted)]">历史对话</p>
+              <span class="text-[11px] text-[var(--yy-muted)]/70">{{ aiConversations.length }} 条</span>
+            </div>
+
+            <div v-if="!aiConversations.length" class="mt-3 rounded-[20px] bg-[var(--yy-cream)] px-4 py-5 text-center text-xs leading-5 text-[var(--yy-muted)]">
+              还没有历史对话，先问问今天吃什么吧。
+            </div>
+
+            <div v-else class="message-list mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+              <div
+                v-for="conversation in aiConversations"
+                :key="`desktop-${conversation.id}`"
+                class="group flex items-center gap-1.5 rounded-[18px] border px-2.5 py-2.5 transition"
+                :class="
+                  conversation.id === currentConversationId
+                    ? 'border-[var(--yy-tomato)] bg-[var(--yy-apricot)]/10'
+                    : 'border-transparent bg-[var(--yy-cream)]/70 hover:border-[var(--yy-line)]'
+                "
+              >
+                <button
+                  type="button"
+                  class="min-w-0 flex-1 text-left"
+                  @click="selectAiConversation(conversation.id)"
+                >
+                  <p class="truncate text-sm font-semibold text-[var(--yy-ink)]">{{ conversation.title }}</p>
+                  <p class="mt-1 line-clamp-1 text-[11px] text-[var(--yy-muted)]">
+                    {{ getConversationPreview(conversation.last_message_preview) }}
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--yy-muted)] opacity-70 transition hover:bg-white hover:text-[var(--yy-tomato)] group-hover:opacity-100"
+                  aria-label="删除历史对话"
+                  @click.stop="handleDeleteAiConversation(conversation.id)"
+                >
+                  <Trash2 class="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <div class="ai-chat-panel flex min-h-0 flex-col gap-3">
+          <div class="yy-card flex shrink-0 items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
+            <span class="hidden h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--yy-apricot)]/15 text-[var(--yy-tomato)] sm:flex">
+              <Bot class="h-5 w-5" />
+            </span>
+            <div class="flex min-w-0 flex-1 items-center justify-between gap-2">
           <div class="min-w-0 flex-1">
-            <p class="hidden text-[11px] uppercase tracking-[0.16em] text-[var(--yy-muted)] sm:block">当前对话</p>
-            <h2 class="truncate px-1 text-sm font-semibold text-[var(--yy-ink)] sm:mt-1 sm:px-0 sm:text-base">
+              <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--yy-muted)]">当前对话</p>
+              <h2 class="mt-0.5 truncate text-sm font-semibold text-[var(--yy-ink)] sm:text-base">
               {{ currentConversation?.title ?? '新对话' }}
             </h2>
-            <p class="mt-1 hidden text-[11px] leading-5 text-[var(--yy-muted)] sm:block sm:text-xs">
-              {{ currentConversation ? '切换历史对话可继续之前的上下文。' : '开启一个新话题，AI 会按新的对话上下文回答。' }}
-            </p>
           </div>
           <div class="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <button
               type="button"
-              class="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-[var(--yy-cream)] px-2.5 text-xs font-medium text-[var(--yy-ink)] sm:h-auto sm:px-3 sm:py-2"
+                class="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-[var(--yy-cream)] px-2.5 text-xs font-medium text-[var(--yy-ink)] md:hidden"
               aria-label="查看 AI 历史记录"
               :disabled="aiSending"
               @click="aiHistoryPopupVisible = true"
@@ -576,7 +643,7 @@ watch(
             </button>
             <button
               type="button"
-              class="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-[var(--yy-tomato)] px-2.5 text-xs font-medium text-white sm:h-auto sm:px-3 sm:py-2"
+                class="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-[var(--yy-tomato)] px-2.5 text-xs font-medium text-white md:hidden"
               aria-label="开始新的 AI 对话"
               :disabled="aiSending"
               @click="handleNewAiConversation"
@@ -585,26 +652,23 @@ watch(
               <span class="hidden min-[360px]:inline">新对话</span>
             </button>
           </div>
-        </div>
-        <div class="hidden rounded-[22px] border border-[var(--yy-line)] bg-white/70 px-4 py-3 text-sm leading-6 text-[var(--yy-muted)] sm:block">
-          AI 小厨会结合当前家庭菜品库、你的文字描述和冰箱图片，推荐适合做的菜。
-        </div>
-      </div>
+            </div>
+          </div>
 
-      <div
-        v-if="aiConnectionError"
-        class="flex items-center justify-center gap-2 rounded-2xl bg-amber-50 px-4 py-2 text-xs text-amber-700"
-        role="status"
-      >
-        <WifiOff class="h-3.5 w-3.5" />
-        AI 服务暂时有点忙，正在尝试恢复
-      </div>
+          <div
+            v-if="aiConnectionError"
+            class="flex items-center justify-center gap-2 rounded-2xl bg-amber-50 px-4 py-2 text-xs text-amber-700"
+            role="status"
+          >
+            <WifiOff class="h-3.5 w-3.5" />
+            AI 服务暂时有点忙，正在尝试恢复
+          </div>
 
-      <div
-        ref="aiMessageList"
-        class="message-list min-h-0 flex-1 overflow-y-auto rounded-[28px] border border-[var(--yy-line)] bg-white/55 px-3 py-4"
-        aria-live="polite"
-      >
+          <div
+            ref="aiMessageList"
+            class="message-list min-h-0 flex-1 overflow-y-auto rounded-[28px] border border-[var(--yy-line)] bg-white/55 px-3 py-4 sm:px-5 sm:py-5 md:px-6"
+            aria-live="polite"
+          >
         <div
           v-if="aiInitialLoading"
           class="flex h-full items-center justify-center text-sm text-[var(--yy-muted)]"
@@ -647,7 +711,7 @@ watch(
               class="flex"
               :class="message.role === 'user' ? 'justify-end' : 'justify-start'"
             >
-              <div class="max-w-[88%] space-y-2">
+              <div class="max-w-[88%] space-y-2 md:max-w-[82%]">
                 <p
                   class="px-1 text-[11px] text-[var(--yy-muted)]"
                   :class="message.role === 'user' ? 'text-right' : 'text-left'"
@@ -734,7 +798,7 @@ watch(
         </template>
       </div>
 
-      <div class="space-y-3">
+          <div class="shrink-0 space-y-3">
         <van-popup
           v-model:show="aiHistoryPopupVisible"
           round
@@ -824,7 +888,7 @@ watch(
           @remove="clearAiSelectedImage"
         />
 
-        <form class="yy-card flex items-end gap-2 p-2" @submit.prevent="submitAiMessage">
+            <form class="yy-card flex items-end gap-2 p-2.5 sm:p-3" @submit.prevent="submitAiMessage">
           <button
             type="button"
             class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--yy-cream)] text-[var(--yy-tomato)] transition"
@@ -841,7 +905,7 @@ watch(
             maxlength="2000"
             enterkeyhint="send"
             :placeholder="selectedImage ? '补充一句，比如“这些食材适合做什么？”' : '问问 AI 今天吃什么…'"
-            class="max-h-28 min-h-11 flex-1 resize-none rounded-[20px] bg-[var(--yy-cream)] px-4 py-3 text-sm leading-5 text-[var(--yy-ink)] outline-none placeholder:text-[var(--yy-muted)]/70"
+              class="max-h-36 min-h-11 flex-1 resize-none rounded-[20px] bg-[var(--yy-cream)] px-4 py-3 text-sm leading-5 text-[var(--yy-ink)] outline-none placeholder:text-[var(--yy-muted)]/70 sm:min-h-[52px]"
             @compositionstart="aiComposing = true"
             @compositionend="aiComposing = false"
             @keydown="handleAiComposerKeydown"
@@ -854,7 +918,9 @@ watch(
           >
             <SendHorizontal class="h-5 w-5" />
           </button>
-        </form>
+            </form>
+          </div>
+        </div>
       </div>
     </template>
   </section>
@@ -864,6 +930,11 @@ watch(
 .messages-page {
   height: calc(100dvh - 6.75rem - env(safe-area-inset-bottom));
   min-height: 30rem;
+}
+
+.ai-workspace,
+.ai-chat-panel {
+  min-width: 0;
 }
 
 .message-list {
@@ -884,6 +955,18 @@ watch(
 @keyframes streaming-blink {
   50% {
     opacity: 0;
+  }
+}
+
+@media (min-width: 768px) {
+  .messages-page {
+    min-height: 40rem;
+    padding-right: 2rem;
+    padding-left: 2rem;
+  }
+
+  .ai-workspace {
+    overflow: hidden;
   }
 }
 
