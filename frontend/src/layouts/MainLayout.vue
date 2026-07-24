@@ -26,7 +26,8 @@ const tabs = [
 ]
 
 const active = computed(() => (route.name === 'journal' ? 'profile' : (route.name as string)))
-const isMessagesRoute = computed(() => route.name === 'messages')
+const hideBottomNav = computed(() => Boolean(route.meta.hideBottomNav))
+const wideLayout = computed(() => Boolean(route.meta.wideLayout))
 const unreadLabel = computed(() => (unreadCount.value > 99 ? '99+' : String(unreadCount.value)))
 
 function navigate(path: string) {
@@ -83,16 +84,17 @@ onBeforeUnmount(() => {
 <template>
   <div
     class="yy-shell mx-auto flex min-h-screen w-full flex-col transition-[max-width] duration-300"
-    :class="isMessagesRoute ? 'max-w-[1180px]' : 'max-w-[480px]'"
+    :class="wideLayout ? 'max-w-[1180px]' : 'max-w-[480px]'"
   >
     <main
       class="flex-1"
-      :class="isMessagesRoute ? 'pb-0' : 'pb-[calc(6.75rem+env(safe-area-inset-bottom))]'"
+      :class="hideBottomNav ? 'pb-0' : 'pb-[calc(6.75rem+env(safe-area-inset-bottom))]'"
     >
       <router-view />
     </main>
 
     <nav
+      v-if="!hideBottomNav"
       aria-label="主导航"
       class="fixed bottom-3 left-1/2 z-20 flex w-[calc(100%-1.5rem)] max-w-[456px] -translate-x-1/2 rounded-[26px] border border-white/70 bg-[rgba(48,37,31,0.94)] px-2 py-2 shadow-[0_18px_50px_rgba(48,37,31,0.28)] backdrop-blur-xl"
       :style="{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }"

@@ -9,7 +9,9 @@ const DishesPage = () => import('@/pages/DishesPage.vue')
 const FamilyOnboardingPage = () => import('@/pages/FamilyOnboardingPage.vue')
 const HomePage = () => import('@/pages/HomePage.vue')
 const LoginPage = () => import('@/pages/LoginPage.vue')
-const MessagesPage = () => import('@/pages/MessagesPage.vue')
+const AiChatPage = () => import('@/pages/AiChatPage.vue')
+const FamilyChatPage = () => import('@/pages/FamilyChatPage.vue')
+const MessagesHubPage = () => import('@/pages/MessagesHubPage.vue')
 const OrderCreatePage = () => import('@/pages/OrderCreatePage.vue')
 const OrderDetailPage = () => import('@/pages/OrderDetailPage.vue')
 const OrdersPage = () => import('@/pages/OrdersPage.vue')
@@ -66,8 +68,20 @@ const routes: RouteRecordRaw[] = [
       {
         path: '/messages',
         name: 'messages',
-        component: MessagesPage,
+        component: MessagesHubPage,
         meta: { requiresFamily: false },
+      },
+      {
+        path: '/messages/family',
+        name: 'family-chat',
+        component: FamilyChatPage,
+        meta: { requiresFamily: true, hideBottomNav: true },
+      },
+      {
+        path: '/messages/ai',
+        name: 'ai-chat',
+        component: AiChatPage,
+        meta: { requiresFamily: true, hideBottomNav: true, wideLayout: true },
       },
       {
         path: '/profile',

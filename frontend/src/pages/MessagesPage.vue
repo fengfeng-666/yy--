@@ -2,14 +2,14 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { showConfirmDialog, showFailToast, showSuccessToast } from 'vant'
-import { ArrowDown, Bot, ChevronRight, History, ImagePlus, MessageCircle, Plus, SendHorizontal, Trash2, WifiOff } from 'lucide-vue-next'
+import { ArrowDown, ArrowLeft, Bot, ChevronRight, History, ImagePlus, MessageCircle, Plus, SendHorizontal, Trash2, WifiOff } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
 
 import AiActionDraftCard from '@/components/AiActionDraftCard.vue'
 import AiImageAttachmentPreview from '@/components/AiImageAttachmentPreview.vue'
 import AiRecommendationCard from '@/components/AiRecommendationCard.vue'
 import AiRetrievalSources from '@/components/AiRetrievalSources.vue'
 import AiToolTrace from '@/components/AiToolTrace.vue'
-import NoFamilyState from '@/components/NoFamilyState.vue'
 import { useAiChatStore } from '@/stores/aiChat'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
@@ -20,6 +20,11 @@ import { resolveAssetUrl } from '@/utils/assets'
 const POLL_INTERVAL_MS = 3000
 const BOTTOM_THRESHOLD_PX = 80
 
+const props = defineProps<{
+  mode: 'family' | 'ai'
+}>()
+
+const router = useRouter()
 const authStore = useAuthStore()
 const aiChatStore = useAiChatStore()
 const chatStore = useChatStore()
@@ -46,7 +51,7 @@ const {
 } = storeToRefs(aiChatStore)
 const { currentFamily, hasFamily } = storeToRefs(familyStore)
 
-const activeTab = ref<'family' | 'ai'>('family')
+const activeTab = computed(() => props.mode)
 const familyDraft = ref('')
 const aiDraft = ref('')
 const familyMessageList = ref<HTMLElement | null>(null)
@@ -333,8 +338,17 @@ function getConversationPreview(content?: string | null) {
   return content
 }
 
+function goBack() {
+  void router.push('/messages')
+}
+
 onMounted(async () => {
   if (!hasFamily.value) return
+  if (activeTab.value === 'ai') {
+    await ensureAiMessagesLoaded()
+    return
+  }
+
   try {
     await chatStore.loadInitialMessages()
     await scrollFamilyToBottom()
@@ -342,6 +356,7 @@ onMounted(async () => {
   } catch {
     // 初始错误由页面内状态展示。
   }
+
   document.addEventListener('visibilitychange', handleVisibilityChange)
   startPolling()
 })
@@ -350,23 +365,6 @@ onBeforeUnmount(() => {
   stopPolling()
   document.removeEventListener('visibilitychange', handleVisibilityChange)
   revokeAiImagePreview()
-})
-
-watch(activeTab, async (tab) => {
-  if (tab === 'family') {
-    startPolling()
-    if (familyMessages.value.length) {
-      await scrollFamilyToBottom()
-      await markVisibleMessagesRead()
-    }
-    return
-  }
-
-  stopPolling()
-  await ensureAiMessagesLoaded()
-  if (aiMessages.value.length) {
-    await scrollAiToBottom()
-  }
 })
 
 watch(
@@ -379,82 +377,57 @@ watch(
 
 <template>
   <section class="messages-page yy-page flex flex-col gap-3 pb-2 pt-3 sm:gap-4 sm:pt-5">
-    <header class="yy-enter flex items-start justify-between gap-3 px-1 sm:gap-4">
-      <div>
-        <p class="yy-kicker">Family messages</p>
-        <h1 class="yy-display mt-1.5 text-[28px] font-bold leading-none text-[var(--yy-ink)] sm:mt-2 sm:text-[32px]">消息</h1>
-        <p v-if="hasFamily" class="mt-1.5 text-xs text-[var(--yy-muted)] sm:mt-2 sm:text-sm">{{ currentFamily?.name }}的悄悄话</p>
+    <header class="yy-enter flex items-center justify-between gap-3 px-1 sm:gap-4">
+      <div class="flex min-w-0 items-center gap-3">
+        <button
+          type="button"
+          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[var(--yy-ink)] shadow-sm transition"
+          aria-label="返回消息"
+          @click="goBack"
+        >
+          <ArrowLeft class="h-5 w-5" />
+        </button>
+        <div class="min-w-0">
+          <p class="yy-kicker">{{ activeTab === 'family' ? 'Family chat' : 'AI kitchen' }}</p>
+          <h1 class="yy-display mt-1 truncate text-[26px] font-bold leading-none text-[var(--yy-ink)] sm:text-[30px]">
+            {{ activeTab === 'family' ? '家庭聊天' : 'AI聊天' }}
+          </h1>
+          <p class="mt-1.5 truncate text-xs text-[var(--yy-muted)] sm:text-sm">
+            {{ activeTab === 'family' ? `${currentFamily?.name}的悄悄话` : '让 AI 小厨帮你想想今天吃什么' }}
+          </p>
+        </div>
       </div>
-      <span class="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--yy-tomato)] text-white shadow-[0_12px_28px_rgba(207,100,71,0.24)] sm:h-12 sm:w-12">
-        <MessageCircle class="h-6 w-6" :stroke-width="1.8" />
+
+      <div v-if="activeTab === 'ai'" class="flex shrink-0 items-center gap-2 md:hidden">
+        <button
+          type="button"
+          class="flex h-10 items-center justify-center gap-1.5 rounded-[18px] bg-white px-3 text-xs font-medium text-[var(--yy-muted)] shadow-sm transition"
+          aria-label="查看 AI 历史记录"
+          :disabled="aiSending"
+          @click="aiHistoryPopupVisible = true"
+        >
+          <History class="h-4 w-4" />
+          历史
+        </button>
+        <button
+          type="button"
+          class="flex h-10 w-10 items-center justify-center rounded-[18px] bg-[var(--yy-tomato)] text-white shadow-sm transition"
+          aria-label="开始新的 AI 对话"
+          :disabled="aiSending"
+          @click="handleNewAiConversation"
+        >
+          <Plus class="h-4 w-4" />
+        </button>
+      </div>
+      <span
+        v-else
+        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--yy-ink)] text-white shadow-sm"
+      >
+        <MessageCircle class="h-5 w-5" />
       </span>
     </header>
 
-    <div
-      class="yy-card grid gap-1 p-1"
-      :class="
-        activeTab === 'ai'
-          ? 'grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] md:grid-cols-2'
-          : 'grid-cols-2'
-      "
-    >
-      <button
-        type="button"
-        class="flex min-w-0 items-center justify-center gap-1.5 rounded-[20px] px-2 py-2.5 text-[13px] font-medium transition sm:gap-2 sm:px-4 sm:py-3 sm:text-sm"
-        :class="
-          activeTab === 'family'
-            ? 'bg-[var(--yy-ink)] text-white shadow-sm'
-            : 'text-[var(--yy-muted)]'
-        "
-        @click="activeTab = 'family'"
-      >
-        <MessageCircle class="h-4 w-4" />
-        家庭聊天
-      </button>
-      <button
-        type="button"
-        class="flex min-w-0 items-center justify-center gap-1.5 rounded-[20px] px-2 py-2.5 text-[13px] font-medium transition sm:gap-2 sm:px-4 sm:py-3 sm:text-sm"
-        :class="
-          activeTab === 'ai'
-            ? 'bg-[var(--yy-tomato)] text-white shadow-sm'
-            : 'text-[var(--yy-muted)]'
-        "
-        @click="activeTab = 'ai'"
-      >
-        <Bot class="h-4 w-4" />
-        AI聊天
-      </button>
-      <button
-        v-if="activeTab === 'ai'"
-        type="button"
-        class="flex min-h-10 items-center justify-center gap-1.5 rounded-[18px] px-2 text-xs font-medium text-[var(--yy-muted)] transition md:hidden"
-        aria-label="查看 AI 历史记录"
-        :disabled="aiSending"
-        @click="aiHistoryPopupVisible = true"
-      >
-        <History class="h-4 w-4" />
-        历史
-      </button>
-      <button
-        v-if="activeTab === 'ai'"
-        type="button"
-        class="flex h-10 w-10 items-center justify-center rounded-[18px] bg-[var(--yy-tomato)] text-white shadow-sm transition md:hidden"
-        aria-label="开始新的 AI 对话"
-        :disabled="aiSending"
-        @click="handleNewAiConversation"
-      >
-        <Plus class="h-4 w-4" />
-      </button>
-    </div>
-
-    <NoFamilyState
-      v-if="!hasFamily"
-      class="mt-2"
-      title="加入家庭后开始聊天"
-      description="和家人加入同一个家庭空间后，既能聊家常，也能让 AI 根据家庭菜品和冰箱图片给你推荐。"
-    />
-
-    <template v-else-if="activeTab === 'family'">
+    <template v-if="activeTab === 'family'">
       <div
         v-if="familyConnectionError"
         class="flex items-center justify-center gap-2 rounded-2xl bg-amber-50 px-4 py-2 text-xs text-amber-700"
@@ -919,16 +892,17 @@ watch(
 
 <style scoped>
 .messages-page {
-  height: calc(100dvh - 6.75rem - env(safe-area-inset-bottom));
+  height: 100dvh;
   min-height: 0;
-  max-height: calc(100dvh - 6.75rem - env(safe-area-inset-bottom));
+  max-height: 100dvh;
   overflow: hidden;
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 
 @supports not (height: 100dvh) {
   .messages-page {
-    height: calc(100vh - 6.75rem - env(safe-area-inset-bottom));
-    max-height: calc(100vh - 6.75rem - env(safe-area-inset-bottom));
+    height: 100vh;
+    max-height: 100vh;
   }
 }
 
@@ -960,12 +934,9 @@ watch(
 
 @media (min-width: 768px) {
   .messages-page {
-    min-height: 40rem;
-    max-height: none;
     padding-right: 2rem;
     padding-left: 2rem;
   }
-
 }
 
 @media (prefers-reduced-motion: reduce) {
