@@ -552,7 +552,7 @@ watch(
         @change="handleAiImageChange"
       />
 
-      <div class="ai-workspace min-h-0 flex-1 md:grid md:grid-cols-[17.5rem_minmax(0,1fr)] md:gap-4">
+      <div class="ai-workspace min-h-0 flex-1 overflow-hidden md:grid md:grid-cols-[17.5rem_minmax(0,1fr)] md:gap-4">
         <aside class="yy-card hidden min-h-0 flex-col overflow-hidden p-4 md:flex">
           <div class="flex items-start gap-3 border-b border-[var(--yy-line)] pb-4">
             <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--yy-tomato)] text-white shadow-[0_10px_24px_rgba(207,100,71,0.22)]">
@@ -618,7 +618,7 @@ watch(
           </div>
         </aside>
 
-        <div class="ai-chat-panel flex min-h-0 flex-col gap-3">
+        <div class="ai-chat-panel flex h-full min-h-0 flex-col gap-3 overflow-hidden">
           <div class="yy-card flex shrink-0 items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
             <span class="hidden h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--yy-apricot)]/15 text-[var(--yy-tomato)] sm:flex">
               <Bot class="h-5 w-5" />
@@ -975,9 +975,6 @@ watch(
     padding-left: 2rem;
   }
 
-  .ai-workspace {
-    overflow: hidden;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
