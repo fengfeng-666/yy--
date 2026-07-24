@@ -36,7 +36,6 @@ const {
 const {
   connectionError: aiConnectionError,
   conversations: aiConversations,
-  currentConversation,
   currentConversationId,
   hasMore: aiHasMore,
   initialLoading: aiInitialLoading,
@@ -391,10 +390,17 @@ watch(
       </span>
     </header>
 
-    <div class="yy-card flex gap-2 p-1">
+    <div
+      class="yy-card grid gap-1 p-1"
+      :class="
+        activeTab === 'ai'
+          ? 'grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] md:grid-cols-2'
+          : 'grid-cols-2'
+      "
+    >
       <button
         type="button"
-        class="flex flex-1 items-center justify-center gap-2 rounded-[20px] px-3 py-2.5 text-[13px] font-medium transition sm:px-4 sm:py-3 sm:text-sm"
+        class="flex min-w-0 items-center justify-center gap-1.5 rounded-[20px] px-2 py-2.5 text-[13px] font-medium transition sm:gap-2 sm:px-4 sm:py-3 sm:text-sm"
         :class="
           activeTab === 'family'
             ? 'bg-[var(--yy-ink)] text-white shadow-sm'
@@ -407,7 +413,7 @@ watch(
       </button>
       <button
         type="button"
-        class="flex flex-1 items-center justify-center gap-2 rounded-[20px] px-3 py-2.5 text-[13px] font-medium transition sm:px-4 sm:py-3 sm:text-sm"
+        class="flex min-w-0 items-center justify-center gap-1.5 rounded-[20px] px-2 py-2.5 text-[13px] font-medium transition sm:gap-2 sm:px-4 sm:py-3 sm:text-sm"
         :class="
           activeTab === 'ai'
             ? 'bg-[var(--yy-tomato)] text-white shadow-sm'
@@ -417,6 +423,27 @@ watch(
       >
         <Bot class="h-4 w-4" />
         AI聊天
+      </button>
+      <button
+        v-if="activeTab === 'ai'"
+        type="button"
+        class="flex min-h-10 items-center justify-center gap-1.5 rounded-[18px] px-2 text-xs font-medium text-[var(--yy-muted)] transition md:hidden"
+        aria-label="查看 AI 历史记录"
+        :disabled="aiSending"
+        @click="aiHistoryPopupVisible = true"
+      >
+        <History class="h-4 w-4" />
+        历史
+      </button>
+      <button
+        v-if="activeTab === 'ai'"
+        type="button"
+        class="flex h-10 w-10 items-center justify-center rounded-[18px] bg-[var(--yy-tomato)] text-white shadow-sm transition md:hidden"
+        aria-label="开始新的 AI 对话"
+        :disabled="aiSending"
+        @click="handleNewAiConversation"
+      >
+        <Plus class="h-4 w-4" />
       </button>
     </div>
 
@@ -619,42 +646,6 @@ watch(
         </aside>
 
         <div class="ai-chat-panel flex h-full min-h-0 flex-col gap-3 overflow-hidden">
-          <div class="yy-card flex shrink-0 items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
-            <span class="hidden h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--yy-apricot)]/15 text-[var(--yy-tomato)] sm:flex">
-              <Bot class="h-5 w-5" />
-            </span>
-            <div class="flex min-w-0 flex-1 items-center justify-between gap-2">
-          <div class="min-w-0 flex-1">
-              <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--yy-muted)]">当前对话</p>
-              <h2 class="mt-0.5 truncate text-sm font-semibold text-[var(--yy-ink)] sm:text-base">
-              {{ currentConversation?.title ?? '新对话' }}
-            </h2>
-          </div>
-          <div class="flex shrink-0 items-center gap-1.5 sm:gap-2">
-            <button
-              type="button"
-                class="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-[var(--yy-cream)] px-2.5 text-xs font-medium text-[var(--yy-ink)] md:hidden"
-              aria-label="查看 AI 历史记录"
-              :disabled="aiSending"
-              @click="aiHistoryPopupVisible = true"
-            >
-              <History class="h-3.5 w-3.5" />
-              <span class="hidden min-[360px]:inline">历史记录</span>
-            </button>
-            <button
-              type="button"
-                class="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-[var(--yy-tomato)] px-2.5 text-xs font-medium text-white md:hidden"
-              aria-label="开始新的 AI 对话"
-              :disabled="aiSending"
-              @click="handleNewAiConversation"
-            >
-              <Plus class="h-3.5 w-3.5" />
-              <span class="hidden min-[360px]:inline">新对话</span>
-            </button>
-          </div>
-            </div>
-          </div>
-
           <div
             v-if="aiConnectionError"
             class="flex items-center justify-center gap-2 rounded-2xl bg-amber-50 px-4 py-2 text-xs text-amber-700"
