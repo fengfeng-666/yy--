@@ -12,6 +12,14 @@
 frontend/dist/
 frontend/vite.config.ts.timestamp-*.mjs
 backend/uploads/
+backend-java/target/
+backend-java/uploads/
+ai-service/*.egg-info/
+.m2/
+.test-artifacts/
+miniprogram/dist/
+miniprogram/unpackage/
+**/*.tsbuildinfo
 
 # 本地发布包与数据库备份可能包含环境变量或用户上传文件，禁止提交。
 /*.tar.gz

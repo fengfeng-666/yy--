@@ -7,61 +7,108 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
     ports:
-      - "${POSTGRES_PORT:-5433}:5432"
+    - ${POSTGRES_PORT:-5433}:5432
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+    - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-yy_kitchen}"]
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-yy_kitchen}
       interval: 5s
       timeout: 5s
       retries: 10
-
-  chroma:
-    image: chromadb/chroma:0.5.23
-    container_name: yy-kitchen-chroma
-    ports:
-      - "8002:8000"
-    volumes:
-      - chroma_data:/chroma/chroma
-
   backend:
     build:
-      context: ./backend
-    container_name: yy-kitchen-backend
-    environment:
-      APP_NAME: YY私厨
-      APP_ENV: development
-      DEBUG: "true"
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: ${POSTGRES_DB:-yy_kitchen}
-      DB_USER: ${POSTGRES_USER:-postgres}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      JWT_SECRET_KEY: replace-with-strong-secret
-      JWT_ALGORITHM: HS256
-      ACCESS_TOKEN_EXPIRE_MINUTES: 30
-      REFRESH_TOKEN_EXPIRE_DAYS: 30
-      UPLOAD_DIR: uploads
-      MAX_UPLOAD_SIZE_MB: 10
-      CORS_ORIGINS: '["http://localhost:5174"]'
-      AI_ENABLED: ${AI_ENABLED:-false}
-      AI_BASE_URL: ${AI_BASE_URL:-}
-      AI_API_KEY: ${AI_API_KEY:-}
-      AI_MODEL: ${AI_MODEL:-mimo-v2.5}
-      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-text-embedding-3-small}
-      AI_VECTOR_BACKEND: ${AI_VECTOR_BACKEND:-chroma}
-      CHROMA_PERSIST_DIR: ${CHROMA_PERSIST_DIR:-data/chroma}
-      PGVECTOR_TABLE_PREFIX: ${PGVECTOR_TABLE_PREFIX:-yy_ai}
-      RAG_TOP_K: ${RAG_TOP_K:-4}
-      RAG_SCORE_THRESHOLD: ${RAG_SCORE_THRESHOLD:-0.1}
-    ports:
-      - "8001:8001"
+      context: ./backend-java
     depends_on:
+      ai-service:
+        condition: service_healthy
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-local-ai-service-token}
+      AI_SERVICE_URL: http://ai-service:8002
+      AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-60}
+      APP_ENV: development
+      APP_NAME: ${APP_NAME:-YY私厨}
+      CORS_ORIGINS: '["http://localhost:5174"]'
+      DB_HOST: postgres
+      DB_NAME: ${POSTGRES_DB:-yy_kitchen}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DEBUG: 'false'
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-local-development-secret-at-least-32-bytes}
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-10}
+      RAG_SCORE_THRESHOLD: ${RAG_SCORE_THRESHOLD:-0.1}
+      RAG_TOP_K: ${RAG_TOP_K:-4}
+      REDIS_HOST: redis
+      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-30}
+      UPLOAD_DIR: uploads
+      WECHAT_APP_ID: ${WECHAT_APP_ID:-}
+      WECHAT_APP_SECRET: ${WECHAT_APP_SECRET:-}
+      WECHAT_ENABLED: ${WECHAT_ENABLED:-false}
+      WECHAT_TEMPLATE_NEW_ORDER: ${WECHAT_TEMPLATE_NEW_ORDER:-}
+      WECHAT_TEMPLATE_ORDER_ACCEPTED: ${WECHAT_TEMPLATE_ORDER_ACCEPTED:-}
+    healthcheck:
+      interval: 30s
+      retries: 5
+      start_period: 40s
+      test:
+      - CMD
+      - curl
+      - -fsS
+      - http://127.0.0.1:8001/api/v1/health
+      timeout: 5s
+    restart: unless-stopped
     volumes:
-      - ./backend:/app
-
+    - ./backend/uploads:/app/uploads
+    ports:
+    - 8001:8001
+  redis:
+    command:
+    - redis-server
+    - --appendonly
+    - 'yes'
+    healthcheck:
+      interval: 5s
+      retries: 10
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      timeout: 3s
+    restart: unless-stopped
+    volumes:
+    - redis_data:/data
+    ports:
+    - 127.0.0.1:6379:6379
+  ai-service:
+    build:
+      context: ./ai-service
+    environment:
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com/v1}
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_MODEL: ${AI_MODEL:-}
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-local-ai-service-token}
+      AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-60}
+    healthcheck:
+      interval: 10s
+      retries: 10
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health')
+      timeout: 3s
+    restart: unless-stopped
 volumes:
-  postgres_data:
-  chroma_data:
+  postgres_data: null
+  chroma_data: null
+  redis_data: null

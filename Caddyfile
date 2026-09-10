@@ -13,5 +13,7 @@
 
 {$API_DOMAIN} {
     encode zstd gzip
-    reverse_proxy backend:8001
+    reverse_proxy backend:8001 {
+        flush_interval -1
+    }
 }

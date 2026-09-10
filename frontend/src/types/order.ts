@@ -68,6 +68,7 @@ export interface CreateMealOrderItemPayload {
 }
 
 export interface CreateMealOrderPayload {
+  requestId?: string
   cook_id: number
   planned_date: string
   planned_time?: string

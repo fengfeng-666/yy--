@@ -158,19 +158,13 @@ function Invoke-FrontendChecks {
 }
 
 function Invoke-BackendChecks {
-    Write-Step 'Checking backend'
-    $venvPython = Join-Path $backendDir '.venv\Scripts\python.exe'
-    if (Test-Path -LiteralPath $venvPython) {
-        Invoke-Native -FilePath $venvPython -Arguments @('-m', 'pytest', '-q') -WorkingDirectory $backendDir
-        return
+    Write-Step 'Checking Java business service and Python AI service'
+    Invoke-Native -FilePath 'mvn.cmd' -Arguments @('-B', '-ntp', 'verify') -WorkingDirectory (Join-Path $repoRoot 'backend-java')
+    $aiPython = Join-Path $repoRoot 'ai-service/.venv/Scripts/python.exe'
+    if (-not (Test-Path -LiteralPath $aiPython)) {
+        throw 'Install ai-service/.venv and its dev dependencies first.'
     }
-
-    if (Get-Command 'uv' -ErrorAction SilentlyContinue) {
-        Invoke-Native -FilePath 'uv' -Arguments @('run', 'pytest', '-q') -WorkingDirectory $backendDir
-        return
-    }
-
-    throw 'Backend test environment not found. Create backend/.venv or install uv first.'
+    Invoke-Native -FilePath $aiPython -Arguments @('-m', 'pytest', '-q') -WorkingDirectory (Join-Path $repoRoot 'ai-service')
 }
 
 function Invoke-ComposeCheck {
@@ -371,6 +365,23 @@ echo "release=$release_sha"
 echo "health=ok"
 '@
 
+    if ($DeployScope -ne 'Frontend') {
+        $remoteScript = @'
+set -Eeuo pipefail
+release_sha="$2"
+remote_dir="$3"
+remote_archive="$4"
+mode="$5"
+[[ "$(realpath "$remote_dir")" == "/opt/yykitchen" ]]
+[[ "$release_sha" =~ ^[0-9a-f]{40}$ ]]
+[[ "$remote_archive" == /tmp/yykitchen-*.tar.gz ]]
+cd "$remote_dir"
+test -f .env.production
+tar -xzf "$remote_archive" -C "$remote_dir"
+bash scripts/deploy-services.sh "$mode" deploy
+printf '%s\n' "$release_sha" > .release-version
+'@
+    }
     $mode = if ($Https) { 'https' } else { 'preview' }
     $sshArgs = @(
         '-i', $SshKey,

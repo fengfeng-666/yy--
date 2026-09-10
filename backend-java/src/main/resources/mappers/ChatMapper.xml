@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yykitchen.chat.ChatMapper">
+  <select id="list" resultType="string">
+    SELECT (to_jsonb(m)||jsonb_build_object('sender',to_jsonb(u)))::text FROM chat_messages m JOIN yy_user_profiles u ON u.id=m.sender_id WHERE m.family_id=#{family}
+    <if test="before != null">AND m.id &lt; #{before}</if><if test="after != null">AND m.id &gt; #{after}</if>
+    ORDER BY m.id <choose><when test="after != null">ASC</when><otherwise>DESC</otherwise></choose> LIMIT #{limit}
+  </select>
+</mapper>

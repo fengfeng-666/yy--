@@ -10,6 +10,9 @@ import { useFamilyStore } from '@/stores/family'
 import { useOrderStore } from '@/stores/order'
 import type { DishItem } from '@/types/dish'
 import { resolveAssetUrl } from '@/utils/assets'
+import { orderSubmission } from '@/utils/orderSubmission'
+
+const submission = orderSubmission()
 
 const route = useRoute()
 const router = useRouter()
@@ -82,6 +85,7 @@ function dishImage(url: string | null) {
 }
 
 async function submitOrder() {
+  if (submitting.value) return
   if (!form.cookId) {
     showFailToast('请选择厨师')
     return
@@ -93,7 +97,7 @@ async function submitOrder() {
 
   submitting.value = true
   try {
-    const order = await orderStore.createOrderItem({
+    const order = await orderStore.createOrderItem(submission.prepare({
       cook_id: form.cookId,
       planned_date: form.plannedDate,
       planned_time: form.plannedTime ? `${form.plannedTime}:00` : undefined,
@@ -103,7 +107,8 @@ async function submitOrder() {
         quantity: currentQuantity(dish.id),
         sort_order: index,
       })),
-    })
+    }))
+    submission.complete()
     showSuccessToast('点菜创建成功')
     await router.replace(`/orders/${order.id}`)
   } catch (error) {

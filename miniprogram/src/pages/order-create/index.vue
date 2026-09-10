@@ -7,6 +7,9 @@ import { session } from '@/stores/session'
 import type { DishItem, FamilyMember } from '@/types/api'
 import { showError } from '@/utils/request'
 import { requestSubscriptions } from '@/utils/subscriptions'
+import { orderSubmission } from '@/utils/orderSubmission'
+
+const submission = orderSubmission()
 
 const dishes = ref<DishItem[]>([])
 const members = ref<FamilyMember[]>([])
@@ -35,6 +38,7 @@ function onCookChange(event: { detail: { value: string } }) {
 }
 
 async function submit() {
+  if (submitting.value) return
   if (!form.cookId) return uni.showToast({ title: '请选择谁来做饭', icon: 'none' })
   const items = dishes.value
     .filter((dish) => quantities[dish.id] > 0)
@@ -48,13 +52,14 @@ async function submit() {
     } catch {
       // 消息授权失败不阻断点菜
     }
-    await createOrder({
+    await createOrder(submission.prepare({
       cook_id: form.cookId,
       planned_date: form.date,
       planned_time: `${form.time}:00`,
       note: form.note.trim() || undefined,
       items,
-    })
+    }))
+    submission.complete()
     uni.showToast({ title: '点菜已发出' })
     setTimeout(() => uni.reLaunch({ url: '/pages/orders/index' }), 500)
   } catch (error) {

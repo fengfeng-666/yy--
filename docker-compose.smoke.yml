@@ -1,0 +1,73 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: yy_smoke
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test-only-password
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U test -d yy_smoke]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  model-stub:
+    image: python:3.12-slim
+    command: [python, /stub/model_stub.py]
+    volumes:
+      - ./tests/e2e/model_stub.py:/stub/model_stub.py:ro
+  ai-service:
+    build: ./ai-service
+    image: yy-refactor-smoke-ai:local
+    environment:
+      AI_SERVICE_TOKEN: test-only-service-token
+      AI_ENABLED: 'true'
+      AI_BASE_URL: http://model-stub:8080/v1
+      AI_API_KEY: test-only-key
+      AI_MODEL: test-model
+      AI_TIMEOUT_SECONDS: 30
+    depends_on: [model-stub]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health')"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  backend:
+    build: ./backend-java
+    image: yy-refactor-smoke-backend:local
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: yy_smoke
+      DB_USER: test
+      DB_PASSWORD: test-only-password
+      JWT_SECRET_KEY: test-only-secret-at-least-32-characters-long
+      REDIS_HOST: redis
+      AI_ENABLED: 'true'
+      AI_SERVICE_URL: http://ai-service:8002
+      AI_SERVICE_TOKEN: test-only-service-token
+      AI_TIMEOUT_SECONDS: 30
+    ports: ['127.0.0.1::8001']
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      ai-service: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, curl, -fsS, 'http://127.0.0.1:8001/api/v1/health']
+      interval: 3s
+      timeout: 2s
+      retries: 30
+  frontend:
+    build:
+      context: ./frontend
+      args: {VITE_API_BASE_URL: /api/v1}
+    image: yy-refactor-smoke-frontend:local
+    ports: ['127.0.0.1::80']
+    depends_on:
+      backend: {condition: service_healthy}

@@ -1,0 +1,9 @@
+services:
+  backend:
+    image: ${YY_ROLLBACK_IMAGE:?Set YY_ROLLBACK_IMAGE to the saved prior image}
+    # Both old Python images and previous Java images have their own default startup.
+    command: null
+    environment:
+      REDIS_HOST: redis
+      AI_SERVICE_URL: http://ai-service:8002
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-}

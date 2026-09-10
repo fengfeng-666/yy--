@@ -1,6 +1,19 @@
 # YY私厨
 
-当前仓库包含网站端、微信小程序端和 FastAPI 后端：
+当前默认架构为 **Java 业务后端 + Python AI 服务**，网站和微信小程序接口保持兼容。
+
+- `backend-java/`：Java 17、Spring Boot 3、Spring Security、MyBatis、PostgreSQL、Redis、Flyway。
+- `ai-service/`：FastAPI、LangChain，负责全部 AI 推理与检索，通过内部 SSE 接入 Java。
+- `frontend/`、`miniprogram/`：原有网站和微信小程序，新增下单请求幂等标识。
+- `backend/`：保留的旧 FastAPI 完整服务，用于对照与回退。
+
+**启动、测试、旧库接管、部署与回退请使用 [双服务重构文档](docs/REFACTOR.md)。已有数据库必须先验证并接管，不能直接用 Flyway 自动基线。**
+
+空库开发启动：`docker compose up -d --build`。Java 默认端口为 8001，AI 服务仅在容器内网开放。生产模型配置及内部令牌参考 `.env.production.example`。
+
+以下为迁移前 FastAPI 版本的历史说明，仅用于维护保留的旧服务。
+
+## 旧版项目结构
 
 ```text
 F:\my_project\yy私厨

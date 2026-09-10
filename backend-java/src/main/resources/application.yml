@@ -1,0 +1,37 @@
+server:
+  port: 8001
+  forward-headers-strategy: framework
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:yy_kitchen}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:password}
+  flyway:
+    baseline-on-migrate: false
+    clean-disabled: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 500ms
+      connect-timeout: 500ms
+  servlet:
+    multipart:
+      max-file-size: ${MAX_UPLOAD_SIZE_MB:10}MB
+      max-request-size: 12MB
+  jackson:
+    default-property-inclusion: always
+mybatis:
+  mapper-locations: classpath:mappers/*.xml
+  configuration:
+    call-setters-on-nulls: true
+    local-cache-scope: STATEMENT
+yy:
+  jwt-secret: ${JWT_SECRET_KEY:local-development-secret-at-least-32-bytes}
+  token-minutes: ${ACCESS_TOKEN_EXPIRE_MINUTES:30}
+  upload-dir: ${UPLOAD_DIR:uploads}
+  ai-url: ${AI_SERVICE_URL:http://localhost:8002}
+  ai-token: ${AI_SERVICE_TOKEN:}
+  ai-enabled: ${AI_ENABLED:false}
+  ai-timeout: ${AI_TIMEOUT_SECONDS:60}
+  cors-origins: ${CORS_ORIGINS:[]}
