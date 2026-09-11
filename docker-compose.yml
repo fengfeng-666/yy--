@@ -71,6 +71,7 @@ services:
     ports:
     - 8001:8001
   redis:
+    image: redis:7-alpine
     command:
     - redis-server
     - --appendonly

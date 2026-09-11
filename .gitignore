@@ -14,6 +14,7 @@ frontend/vite.config.ts.timestamp-*.mjs
 backend/uploads/
 backend-java/target/
 backend-java/uploads/
+*.log
 ai-service/*.egg-info/
 .m2/
 .test-artifacts/

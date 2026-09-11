@@ -12,11 +12,12 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8001',
-        changeOrigin: true,
+        // 保留浏览器的 Host，让后端正确识别同源请求，避免 POST 被 CORS 拒绝。
+        changeOrigin: false,
       },
       '/uploads': {
         target: 'http://127.0.0.1:8001',
-        changeOrigin: true,
+        changeOrigin: false,
       },
     },
   },

@@ -71,40 +71,32 @@ docker compose up -d postgres
 - User: `postgres`
 - Password: `password`
 
-### 2. 启动后端
+### 2. 启动后端（默认 Java 业务服务 + Python AI 服务）
 
-先复制环境变量模板：
+> **仅限空库。** 若已存在旧 FastAPI 数据库，不要直接启动 Java——必须先按 [双服务重构文档](docs/REFACTOR.md) 的“旧库接管与回退”验证并接管，Flyway 已关闭自动基线，直接启动会拒绝迁移。
 
-```bash
-copy backend\.env.example backend\.env
-```
-
-然后进入 `backend` 目录安装依赖并启动：
+一键构建并启动全套服务（`backend-java` 与 `ai-service` 以容器运行）：
 
 ```bash
-cd backend
-pip install -e .[dev]
-uvicorn app.main:app --reload --port 8001
+docker compose up -d --build
 ```
 
-后端地址：
+启动后 Java 后端地址：
 
 - API 根地址：`http://localhost:8001`
 - 健康检查：`http://localhost:8001/api/v1/health`
 
-启动后首次请执行数据库初始化，推荐在 `backend/` 目录运行：
+AI 默认关闭；开启需设置 `AI_ENABLED=true` 及 `AI_BASE_URL`、`AI_API_KEY`、`AI_MODEL`，并让 Java 与 Python 使用相同的 `AI_SERVICE_TOKEN`（详见 REFACTOR）。
+
+改用本地进程开发（而非容器）时：
 
 ```bash
-uv run alembic upgrade head
+docker compose up -d postgres redis ai-service
+cd backend-java && mvn spring-boot:run                          # Java 17，环境变量按 application.yml 注入
+cd ai-service && pip install -e '.[dev]' && uvicorn ai_service.main:app --port 8002
 ```
 
-如果你想直接用 SQL 快照初始化当前库结构，也可以执行：
-
-```bash
-docker exec -i yy-kitchen-postgres psql -U postgres -d yy_kitchen < backend/sql/bootstrap_schema.sql
-```
-
-详细迁移约定见 [backend/README.md](file:///f:/my_project/yy私厨/backend/README.md)。
+空库由 Flyway 自动完成 schema 迁移（`V1__legacy_schema.sql` 起）。迁移与接管细节见 [双服务重构文档](docs/REFACTOR.md) 与 [backend-java/README.md](backend-java/README.md)。
 
 ### 3. 启动前端
 
@@ -127,15 +119,17 @@ npm run dev
 
 ## 单独查看说明
 
-- 后端详细说明见 `backend/README.md`
+- 默认后端（Java）详细说明见 `backend-java/README.md`
+- AI 服务详细说明见 `ai-service/README.md`
 - 前端详细说明见 `frontend/README.md`
+- 保留的旧 FastAPI 后端说明见 `backend/README.md`
 
 ## 下一步建议
 
-1. 复制 `backend/.env.example` 为 `backend/.env`
-2. 执行 `docker compose up -d postgres` 启动数据库
-3. 安装后端依赖并启动本地服务
-4. 开始实现“账号与家庭空间”相关模型和迁移
+1. 空库开发：执行 `docker compose up -d --build` 启动全套服务
+2. 已有旧库：先按 `docs/REFACTOR.md` 的“旧库接管与回退”验证并接管，再启动新服务
+3. 用 `mvn -B -ntp -f backend-java/pom.xml verify` 与 `pytest` 验证 Java 与 AI 服务
+4. 使用 `docker-compose.smoke.yml` 做端到端冒烟（不访问真实模型与微信）
 
 ## PostgreSQL 快速使用
 
